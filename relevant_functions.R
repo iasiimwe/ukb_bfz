@@ -748,3 +748,13 @@ ukb_hux_2 <- function(data, covariate_list, covariate_list_2, outcome){
   }
   return(hux_all)
 }
+
+# 14. Subsetting function
+#------------------------
+# Aim: to subset dataframe based on race or covariates.     
+# Input(s): races ("White". "Black", "Asian") or covariates (e.g. "sbp", "glucose").
+# Output: Subsetted dataframe.
+ukb_subset <- function(bd_BFZ_df, specific_race, covariate = NULL) {
+  if (is.null(covariate) == TRUE) return(bd_BFZ_df %>% filter(race == specific_race) %>% nrow()) 
+  else return(bd_BFZ_df %>% filter(race == specific_race) %>% select(all_of(covariate)) %>% na.omit() %>% nrow())
+}
