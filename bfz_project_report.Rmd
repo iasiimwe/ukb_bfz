@@ -3,7 +3,8 @@ title: "ukb_bfz"
 author: "Innocent G Asiimwe"
 date: "`r format(Sys.Date(), '%d %b %Y')`"
 output:
-  html_document: default
+  html_document:
+    keep_md: true
 bibliography: references.bib
 csl: frontiers-in-pharmacology.csl
 ---
