@@ -18,8 +18,10 @@ Details on accessing UK Biobank data are available at https://biobank.ctsu.ox.ac
        * Genetic covariates: the first ten principal components of genetic ancestry (**Data-Field 22009**).
        * Non-genetic covariates: Age at baseline (years, <b>Data-Field 21003</b>), Sex (male vs female, **Data-Field 31**), Body mass index (Kg/m<sup>2</sup>, **Data-Field 21001**), Smoking status (current vs former vs never, **Data-Field 20116**), Alcohol drinker status (current vs former vs never, **Data-Field 20117**), Degree of physical activity (Types of physical activity in last 4 weeks, **Data-Field 6164**), and Townsend index reflecting socioeconomic status (a continuous score, **Data-Field 189**).
 6. Details of downloading genetics data are included in section 4 of https://biobank.ctsu.ox.ac.uk/~bbdatan/Accessing_UKB_data_v2.3.pdf. In addition to the bulk genotyped and/or imputed genetic data, the following should be downloaded.
+    - .fam files, obtained using **./gfetch 22418 -c1 -m -ak67890r12345.key** for genotype data (**Data-Field 22418**) or **./gfetch 22828 -c1 -m -k67890r12345.key** for imputed data (**Data-Field 22828**). 
     - Relatedness dataset, obtained using **./gfetch rel -ak67890r12345.key**.
     - Missingness dataset (**Data-Field 22005**).
+    - Outliers for heterozygosity or missing rate (**Data-Field 22027**).
     - A dictionary (Data_Dictionary_Showcase.csv) to identify the Field IDs (downloaded from https://biobank.ctsu.ox.ac.uk/~bbdatan/Data_Dictionary_Showcase.csv).
     - A data codings file (available at: https://biobank.ctsu.ox.ac.uk/~bbdatan/Codings.csv).
 
@@ -32,4 +34,4 @@ Before analysis, ensure to install the following R files using commands similar 
 
 For downstream analysis, two files are provided in this repository:
 * A relevant_functions.R file that contains project-specific functions used during analysis.
-* An Rmarkdown file that includes the project report and R code used during analysis. Before this work is published, the draft report will include only the code used during analysis, without the corresponding results.
+* An Rmarkdown file (bfz_project_report.Rmd) that includes the project report and R code used during analysis. Before this work is published, the draft report will include only the code used during analysis, without the corresponding results.
