@@ -2,7 +2,7 @@
 
 
 # 1. Change to long format function
-#----------------------------------
+# ---------------------------------
 # Aim: uses the pivot_longer() function {tidyr} to "lengthen" UKBiobank datasets.
 # Input(s): a UKBiobank dataset (bd_enc.csv) converted (using ukbconv) - one participant per row,
 #           the same variable can have multiple columns.  
@@ -45,7 +45,7 @@ ukb_reshape_long <- function(data, dict){
 }
 
 # 2. Minimum sample size function
-#--------------------------------
+# -------------------------------
 # Aim: Compute minimum sample-size (continuous outcomes), requires the 'pwr' package.      
 # Input(s): required effect size (obtained from literature and/or expert opinion).
 #         : known/extrapolated outcome standard deviation for the study population.
@@ -75,7 +75,7 @@ ukb_min_sample <- function(effect, std_ev, p = 5e-8, power = 0.8, maf = 0.2, n_t
 }
 
 # 3. Relatedness function
-#------------------------
+# -----------------------
 # Aim: from highly related individuals (Kinship > 0.0884, greater than 3rd-degree relatedness), 
 #      to exclude those with lower call rates/higher missingness levels.
 # Input(s): relatedness dataset,containing the headers ID1 and ID2 (HetHet, IBS0, and Kinship removed
@@ -110,7 +110,7 @@ ukb_related <- function(related.df, missingness.df, bd_BFZ.df){
 }
 
 # 4. Recode "Prefer not to answer" function
-#------------------------------------------
+# -----------------------------------------
 # Aim: change "Prefer not to answer" to NA.      
 # Input(s): factor with or without the level "Prefer not to answer".
 # Output: factor with "Prefer not to answer" entries changed to NA.
@@ -122,7 +122,7 @@ ukb_recode_factor_na <- function(x){
 }
 
 # 5. Statistics summary function
-#-------------------------------
+# ------------------------------
 # Aim: to obtain summary statistics.      
 # Input(s): numeric vectors (for mean and median) or factors (for percentages).
 #         : functions, namely "mean", "median" and "percentage".
@@ -194,7 +194,7 @@ ukb_statistics <- function(dataQ, f, round_digits = 1) {
 }
 
 # 6. Descriptive summary function
-#--------------------------------
+# -------------------------------
 # Aim: Produce summary statistics for a dataset.      
 # Input(s): dataset with numerical vectors and/or factors.
 #         : number of requires decimal places (default 1).
@@ -247,7 +247,7 @@ ukb_summary <- function(data, round_digits = 1){
 }
 
 # 7. P-value function
-#--------------------
+# -------------------
 # Aim: To derive p-values.    
 # Input(s): an 'all_data' summary that combines outputs of the descriptive summary function (has 
 #           four columns: variable, statistic, included [summary], excluded [summary]).
@@ -294,7 +294,7 @@ ukb_p_value <- function(all_data, included, excluded, round_digits = 4){
 }
 
 # 8. Label and title names functions
-#-----------------------------------
+# ----------------------------------
 # Aim: Provide labels and titles for plotting graphs, limited to the variables used during analysis, 
 #      but can be accordingly expanded.
 # Input(s): the variable being plotted.
@@ -364,12 +364,12 @@ ukb_reference_levels <- function(covariate) {
 }
 
 # 9. Plotting functions
-#----------------------
+# ---------------------
 # Aim: Functions to make project-specific plotting easier and consistent.      
 # Input(s): a dataset containing individuals with the desired phenotype e.g. bd_BFZ.df contains 
 #           bendroflumethiazide-treated participants.
 #         : the variable to be plotted (continuous for box/qq plots; categorical for bar plots).
-# Output: variable-specific box, bar or quantile-quantile (qq) plots.
+# Output: variable-specific box, bar, manhattan or quantile-quantile (qq) plots.
 ukb_box_plots <- function(bd_BFZ, covariate) {
   ggplot(data = bd_BFZ, 
          mapping = aes(x = race, y = .data[[covariate]], fill = race)
@@ -424,8 +424,31 @@ ukb_qq_plots <- function(data, race = NULL){
   }
 }
 
+ukb_manhattan_plots <- function(data, race, outcome){
+  y_limit <- max(ceiling(-log10(5e-8)), ceiling(-log10(min(data$P))))
+  png(paste("UKBB_", race, "_", outcome, "_manhattan.png", sep = ""), 
+      width = 1500, height = 800, res = 120)
+  qqman::manhattan(data,
+                   genomewideline = -log10(5e-8),
+                   col = c("blue4", "orange3"),
+                   ylim = c(0, y_limit)
+                   )
+  dev.off()
+} 
+
+ukb_qq_gwas_plots <- function(data, race, outcome){
+  y_limit <- max(ceiling(-log10(5e-8)), ceiling(-log10(min(data$P))))
+  png(paste("UKBB_", race, "_", outcome, "_qqplot.png", sep = ""), 
+      width = 1500, height = 1500, res = 120)
+  qqman::qq(data$P, 
+            col = "blue4",
+            ylim = c(0, y_limit)
+            )
+  dev.off()
+}
+
 # 10. Recode to SNPTest format
-#-----------------------------
+# ----------------------------
 # Aim: code categorical variables to either "1" or "2", a format that SNPTest requires.    
 # Input(s): factors with two levels.
 # Output: vector with 1s and 2s.
@@ -437,14 +460,14 @@ ukb_recode_snptest <- function(x){
 }
 
 # 11. Comma function
-#-------------------
+# ------------------
 # Aim: display large numbers separated with commas.
 # Input(s): numeric vector.
 # Output: character vector.
 ukb_comma <- function(x) format(x, big.mark = ",")
 
 # 12. Colour format function
-#---------------------------
+# --------------------------
 # Aim: change text colour in rmarkdown using raw HTML or LaTeX code.
 #      This combines HTML and LaTeX syntax:
 #        HTML: <span style="color: red;">text</span>.
@@ -461,7 +484,7 @@ ukb_colour_format <- function(x, color) {
 }
 
 # 13. Huxtable functions
-#-----------------------
+# ----------------------
 # Aim: to produce project-specific huxtables for inclusion in rmarkdown output documents.
 # Input(s): data frame having summary statistics for the three main race categories (columns are 
 #           "Independent variables", "statistic", "White", "Black" and "Asian").
@@ -750,11 +773,105 @@ ukb_hux_2 <- function(data, covariate_list, covariate_list_2, outcome){
 }
 
 # 14. Subsetting function
-#------------------------
+# -----------------------
 # Aim: to subset dataframe based on race or covariates.     
 # Input(s): races ("White". "Black", "Asian") or covariates (e.g. "sbp", "glucose").
 # Output: Subsetted dataframe.
 ukb_subset <- function(bd_BFZ_df, specific_race, covariate = NULL) {
   if (is.null(covariate) == TRUE) return(bd_BFZ_df %>% filter(race == specific_race) %>% nrow()) 
   else return(bd_BFZ_df %>% filter(race == specific_race) %>% select(all_of(covariate)) %>% na.omit() %>% nrow())
+}
+
+# 15. lambda function
+# -------------------
+# Aim: compute the genomic inflation factor (lambda).     
+# Input(s): gwas results
+# Output: lambda.
+ukb_lambda <- function(data){
+  chisq = qchisq(data$P, 1, lower.tail = FALSE)
+  return(median(chisq) / qchisq(0.5, 1))
+}
+
+# 16. Genes/functional significance function
+# ------------------------------------------
+# Aim: Obtain the genes associated with selected SNPs from the dbSNP database. 
+#      (https://www.ncbi.nlm.nih.gov/snp/)
+# Input(s): race, outcome and n_digits (assumes a .csv file containing these snps)
+#           already exists.
+# Output: data frame (.csv and .rds files) that contains associated genes as well 
+#         as SNP locations (e.g. introns) 
+ukb_dbsnp <- function(race, outcome, n_digits = 5){
+  file <- fread(paste0("UKBB_", race, "_", outcome, ".csv")) 
+  N <- unique(file$all_total)
+  file <- file %>%
+    mutate(Gene = NA,
+           `Functional consequence` = NA,
+           all_maf = str_pad(round(all_maf, n_digits), 
+                             n_digits + 1 + str_count(all_maf, "[-.]"), 
+                             "right", 
+                             pad = "0"
+           ),
+           `Beta (SE)` = paste0(str_pad(round(frequentist_add_beta_1, n_digits), 
+                                        n_digits + 1 + str_count(frequentist_add_beta_1, "[-.]"), 
+                                        "right", 
+                                        pad = "0"),
+                                " (",
+                                str_pad(round(frequentist_add_se_1, n_digits), 
+                                        n_digits + 1 + str_count(frequentist_add_se_1, "[-.]"), 
+                                        "right", 
+                                        pad = "0"),
+                                ")"
+           )
+    ) %>%
+    rename(Chromosome = CHR,
+           Position = BP,
+           `P value` = P,
+           `Reference allele` = alleleA,
+           `Alternative allele` = alleleB,
+           `Info score` = info
+    ) %>%
+    select(SNP:Position, Gene, `Functional consequence`, `Reference allele`:`Info score`,
+           all_maf, `Beta (SE)`, `P value`)
+  colnames(file)[which(colnames(file) == "all_maf")] <- paste0("MAF (N = ", N, ")")
+  for(k in 1:nrow(file)) {
+    snp <- file$SNP[k]
+    if (str_detect(snp, ":") == FALSE) {
+      SNP_info <- paste0("https://www.ncbi.nlm.nih.gov/snp/?term=", snp) %>%
+        read_html() %>%
+        html_nodes("dl.snpsum_dl_left_align") %>%
+        html_text() %>%
+        gsub("[\n() ]", "", .)
+      file$Gene[k] <- SNP_info[1] %>% 
+        str_extract("Gene:.*Varview") %>%
+        gsub("Gene:|Varview", "", .) %>%
+        gsub(",", ", ", .)
+      file$`Functional consequence`[k] <- SNP_info[1] %>% 
+        str_extract("FunctionalConsequence:.*Validated") %>%
+        gsub("FunctionalConsequence:|Validated", "", .) %>%
+        gsub(",", ", ", .) %>%
+        gsub("_|:", " ", .) %>%
+        gsub("non coding", "non-coding", .) %>%
+        gsub("Clinicalsignificance", "; Clinical significance", .) %>%
+        gsub("prime", "-prime", .)
+    }
+    message(paste(round(k / nrow(file) * 100, 3), "% complete", sep = ""))
+    if(k %% 100 == 0) {Sys.sleep(10)} # Pause for 10 seconds after every 100 requests
+  }
+  write.csv(file,  file = paste0("UKBB_", race, "_", outcome, "_final.csv"), row.names = FALSE)
+  write_rds(file,  file = paste0("UKBB_", race, "_", outcome, "_final.rds"))
+}
+
+# 17. Image annotation
+# --------------------
+# Aim: annotate images, specifically manhattan plots.     
+# Input(s): .png image.
+# Output: annotated image.
+ukb_image_annotate <- function(image, text, x = 0, y = 0,  size = 20, color = "black", 
+                               boxcolor = "transparent", degrees = 0, font = 'Times',
+                               style = "italic", bold = FALSE, decoration = NULL, kerning = 0)
+{
+  if(bold == FALSE) weight = 400 else weight = 700 
+  image_annotate(image = image, text = text, size = size, color = color, boxcolor = boxcolor, degrees = degrees, 
+                 location = paste0("+", x, "+", y), font = font, style = style, 
+                 weight = weight, decoration = decoration, kerning = kerning)
 }

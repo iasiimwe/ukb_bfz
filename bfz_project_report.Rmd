@@ -3,8 +3,7 @@ title: "ukb_bfz"
 author: "Innocent G Asiimwe"
 date: "`r format(Sys.Date(), '%d %b %Y')`"
 output:
-  html_document:
-    keep_md: true
+  html_document: default
 bibliography: references.bib
 csl: frontiers-in-pharmacology.csl
 ---
@@ -32,6 +31,8 @@ library(psych) # for enhanced scatterplot
 library(rms) # for assessing non-linearity using restricted cubic splines
 library(pwr) # for sample size calculations
 library(huxtable) # for generating tables
+library(rvest) # for webscraping (getting genes and functional significance)
+library(magick) # image annotation
 source("relevant_functions.R")
 ```
 
@@ -757,7 +758,6 @@ webshot2::webshot(url = "hux_table_3.html", file = "hux_table_3.png", zoom = 5)
 # Non-transformed
 bd_BFZ_df <- read_rds("bd_BFZ_df.rds")
 races <- c("White", "Black", "Asian")
-
 png("QQ_outcomes.png", width=1500, height=1500, res=120)
 par(mfrow = c(3,4))
 for(i in seq_along(races)){
@@ -919,83 +919,40 @@ for(i in seq_along(races)){
 
 ```{r Step 9, include = FALSE, eval = FALSE}
 # Step 9: Prepare for GWAS
-# ------------------------
-# Whites
-# ------
+#-------------------------
+races <- c("White", "Black", "Asian")
 bd_BFZ_df <- read_rds("bd_BFZ_df.rds")
-race_BFZ <- "White"              
-bd_imp <- bd_BFZ_df %>% 
-  filter(race == race_BFZ) %>%
-  select(-f.eid, -I, -date, -race)   # 28,160 whites
-md.pattern(bd_imp)   # Extent of missing data
-tempData <- mice(bd_imp, m = 1, maxit = 10, seed = 7) # Impute missing data 
-
-# with the continuous outcomes of age and sex as restricted cubic splines
-bd_imp <- as_tibble(complete(tempData, 1, include = FALSE)) %>%
-  select(age:C10) %>%
-  model.matrix(~ rcs(age, quantile(age, c(0.05, 0.275, 0.5, 0.725, 0.95)))
-               + sex + 
-                 rcs(bmi, quantile(bmi, c(0.05, 0.275, 0.5, 0.725, 0.95))) 
-               + smoking_status + alcohol_status + townsend_index + pa + C1 + C2 
-               + C3 + C4 + C5 + C6 + C7 + C8 + C9 + C10, .
-  ) %>%
-  as_tibble() %>%
-  select(-`(Intercept)`) 
-colnames(bd_imp)[1:9] <- c("age1", "age2", "age3", "age4", "sexMale", "bmi1", 
-                           "bmi2", "bmi3", "bmi4")
-  
-# to matrix format
-categorical <- c("sexMale", "smoking_statusPrevious", "smoking_statusCurrent",
-                 "alcohol_statusPrevious", "alcohol_statusCurrent", "palight",
-                 "paheavy")
-
-bd_imp[categorical] <- bd_imp %>% 
-  select(all_of(categorical)) %>% 
-  ukb_recode_snptest() 
-
-bd_GWAS <- bd_BFZ_df %>% 
-  filter(race == race_BFZ) %>%
-  select(f.eid, glucose:dbp) %>%
-  bind_cols(bd_imp) %>% 
-  relocate(glucose:dbp, .after = last_col()) %>% 
-  rename(ID_1 = f.eid)  # to enable a mutating join later
-# outcomes at the end for SNPtest
-
-#Load sample file with ID1, ID2 and 'missing' columns
-sample_file <- as_tibble(fread("SAMPLE.csv")) #Load file with phenotypes
-sample_file <- left_join(sample_file, bd_GWAS)
-write.table(sample_file, file = paste("sample_", race_BFZ, ".sample", sep = ""), 
-            sep=" ", row.names=FALSE)
-# Manually edit the second row of the sample file to include D (discrete covariate),
-# C (continuous covariate), B (binary outcome) and P (continuous outcome).
-# 0 0 0 C C C C D C C C C D D D D C D D C C C C C C C C C C P P P P
-
-# Blacks and Asians
-# -----------------
-races <- c("Black", "Asian")
 for (race in seq_along(races)){
   race_BFZ <- races[[race]]
   bd_imp <- bd_BFZ_df %>% 
     filter(race == race_BFZ) %>%
-    select(-f.eid, -I, -date, -race)          # 791 blacks
-  md.pattern(bd_imp)   # Extent of missing data
+    select(-f.eid, -I, -date, -race)
+  # md.pattern(bd_imp)   # Extent of missing data
   tempData <- mice(bd_imp, m = 1, maxit = 10, seed = 7) # Impute missing data 
-  #stripplot(tempData, pch = 20, cex = 1.2) # Plot of imputed dataset
+  
+  # with the continuous outcomes of age and sex as restricted cubic splines
   bd_imp <- as_tibble(complete(tempData, 1, include = FALSE)) %>%
     select(age:C10) %>%
-    model.matrix(~ age + sex + bmi + smoking_status + alcohol_status + 
-                   townsend_index + pa + C1 + C2 + C3 + C4 + C5 + C6 + C7 + C8 + 
-                   C9 + C10, .
+    model.matrix(~ rcs(age, quantile(age, c(0.05, 0.275, 0.5, 0.725, 0.95)))
+                 + sex + 
+                   rcs(bmi, quantile(bmi, c(0.05, 0.275, 0.5, 0.725, 0.95))) 
+                 + smoking_status + alcohol_status + townsend_index + pa + C1 + C2 
+                 + C3 + C4 + C5 + C6 + C7 + C8 + C9 + C10, .
     ) %>%
     as_tibble() %>%
-    select(-`(Intercept)`) # Get the imputed dataset, remove outcomes, and change 
+    select(-`(Intercept)`) 
+  colnames(bd_imp)[1:9] <- c("age1", "age2", "age3", "age4", "sexMale", "bmi1", 
+                             "bmi2", "bmi3", "bmi4")
+    
   # to matrix format
   categorical <- c("sexMale", "smoking_statusPrevious", "smoking_statusCurrent",
                    "alcohol_statusPrevious", "alcohol_statusCurrent", "palight",
                    "paheavy")
+  
   bd_imp[categorical] <- bd_imp %>% 
     select(all_of(categorical)) %>% 
     ukb_recode_snptest() 
+  
   bd_GWAS <- bd_BFZ_df %>% 
     filter(race == race_BFZ) %>%
     select(f.eid, glucose:dbp) %>%
@@ -1003,16 +960,130 @@ for (race in seq_along(races)){
     relocate(glucose:dbp, .after = last_col()) %>% 
     rename(ID_1 = f.eid)  # to enable a mutating join later
   # outcomes at the end for SNPtest
-  # Load sample file with ID1, ID2 and 'missing' columns
+  
+  #Load sample file with ID1, ID2 and 'missing' columns
   sample_file <- as_tibble(fread("SAMPLE.csv")) #Load file with phenotypes
   sample_file <- left_join(sample_file, bd_GWAS)
   write.table(sample_file, file = paste("sample_", race_BFZ, ".sample", sep = ""), 
-              sep=" ", row.names=FALSE)
+              sep = " ", row.names = FALSE)
 }
 # Manually edit the second row of the sample files to include D (discrete covariate),
-# C (continuous covariate), B (binary outcome) and P (continuous outcome).
-#0 0 0 C D C D D D D C D D C C C C C C C C C C P P P P
+# C (continuous covariate), B (binary outcome) and P (continuous outcome). 
+# Or paste this in the second row: 0 0 0 C C C C D C C C C D D D D C D D C C C C C C C C C C P P P P
+# Also replace any '"' with ''.
 ```
+
+```{r Step 10, include = FALSE, eval = FALSE}
+#Step 10: Running GWAS
+#--------------------
+# In an R environment, prepare linux scripts for transferring to server 
+# using whites and sbp as an example. 
+
+race <- "white"
+outcome <- "sbp"
+# with rcs (for whites)
+for(i in 1:22){
+  text <- paste("./snptest_v2.5.6 -data ukb_imp_chr", i, "_v3.bgen sample_", race, ".sample -pheno ", outcome, " -frequentist 1 -method expected -cov_names age1 age2 age3 age4 sexMale bmi1 bmi2 bmi3 bmi4 smoking_statusPrevious smoking_statusCurrent alcohol_statusPrevious alcohol_statusCurrent townsend_index palight paheavy C1 C2 C3 C4 C5 C6 C7 C8 C9 C10 -o UKBB_", race, "_", outcome ,"_chr",i, "_add.txt &> stdout", i, race, outcome, ".txt", sep="")
+  cat(text, file = paste("SNPTest_", i, race, outcome,".sh", sep=""))
+}
+# without rcs (e.g. for blacks and asians), only include age1 and bmi1 as covariates for age and bmi
+# i.e. remove age2, age3, age4, bmi2, bmi3 and bmi4 from the above script.
+
+# # Run in Linux after transferring scripts
+# race="white"
+# outcome="sbp"
+# for i in {1..22}; do
+# chmod u+x SNPTest_${i}_*_${race}_${outcome}.sh
+# done 
+#
+# for i in {1..22}; do
+# ./SNPTest_${i}_*_${race}_${outcome}.sh &
+# done
+#
+# # Run in Linux after the above SNPTest scripts have completed running
+# for i in {1..22}; do
+# sed '1,12d;$d' UKBB_${race}_${outcome}_chr${i}_add.txt > UKBB_${race}_${outcome}_chr0${i}.txt
+# done
+# cat UKBB_${race}_${outcome}_chr0*.txt > UKBB_${race}_${outcome}_chr1_22.txt
+# 
+# echo "SNP CHR BP P alleleA alleleB info all_AA all_AB all_BB all_total all_maf missing_data_proportion frequentist_add_beta_1 frequentist_add_se_1 hwe" > UKBB_${race}_${outcome}_Manhattan_temp.txt
+# awk '{print $2,$3,$4,$22,$5,$6,$9,$14,$15,$16,$18,$19,$20,$24,$25,$21}' UKBB_${race}_${outcome}_chr1_22.txt >> UKBB_${race}_${outcome}_Manhattan_temp.txt
+# awk '$4!="NA"' UKBB_${race}_${outcome}_Manhattan_temp.txt > UKBB_${race}_${outcome}_Manhattan.txt
+# awk '$12>=0.01' UKBB_${race}_${outcome}_Manhattan.txt > UKBB_${race}_${outcome}_Manhattan_MAF.txt
+# awk '$13<=0.05' UKBB_${race}_${outcome}_Manhattan_MAF.txt > UKBB_${race}_${outcome}_Manhattan_missingness.txt
+# awk '$16>0.000001' UKBB_${race}_${outcome}_Manhattan_missingness.txt > UKBB_${race}_${outcome}_Manhattan_hwe.txt
+# echo "SNP CHR BP P alleleA alleleB info all_AA all_AB all_BB all_total all_maf missing_data_proportion frequentist_add_beta_1 frequentist_add_se_1 hwe" > UKBB_${race}_${outcome}_Manhattan_info.txt
+# awk '$7>0.4' UKBB_${race}_${outcome}_Manhattan_hwe.txt >> UKBB_${race}_${outcome}_Manhattan_info.txt
+# 
+# wc -l UKBB_${race}_${outcome}_Manhattan.txt > UKBB_${race}_${outcome}_included_SNPs.txt
+# wc -l UKBB_${race}_${outcome}_Manhattan_MAF.txt >> UKBB_${race}_${outcome}_included_SNPs.txt
+# wc -l UKBB_${race}_${outcome}_Manhattan_missingness.txt >> UKBB_${race}_${outcome}_included_SNPs.txt
+# wc -l UKBB_${race}_${outcome}_Manhattan_hwe.txt >> UKBB_${race}_${outcome}_included_SNPs.txt
+# wc -l UKBB_${race}_${outcome}_Manhattan_info.txt >> UKBB_${race}_${outcome}_included_SNPs.txt
+# # _Manhattan_info.txt count includes the header.
+
+# After downloading GWAS results from server (results placed in the R project directory)
+results <- as_tibble(fread(paste("UKBB_", race, "_", outcome, 
+                                 "_Manhattan_info.txt", sep = "")))  
+results2 <- results %>%
+  arrange(P)
+write.csv(results2[results2$P < 1e-5,],  
+          file = paste("UKBB_", race, "_", outcome, ".csv", sep = ""), 
+          row.names = FALSE)
+genome_significant <- nrow(results2[results2$P < 5e-8,])
+nominally_significant <- nrow(results2[results2$P < 1e-5,])
+analyzed_snps <- nrow(results)
+
+# Manhattan plot
+ukb_manhattan_plots(results, race, outcome)
+
+# Quantile-quantile (QQ) plot
+ukb_qq_gwas_plots(results, race, outcome)
+
+# Genomic inflation factor (lambda)
+lambda_white <- ukb_lambda(results)
+
+# Getting genes and functional significance for nominally significant hits
+races <- c("White", "Black", "Asian")
+outcomes <- c("glucose", "urate", "sbp", "dbp")
+for(i in seq_along(races)){
+  race <- races[[i]]
+  for(j in seq_along(outcomes)){
+    outcome <- outcomes[[j]]
+    ukb_dbsnp(race, outcome)
+  }
+}
+```
+
+```{r Step 10b, include = FALSE, eval = FALSE}
+# Step 10b: Annotating Manhattan plots (example for "Whites" and "sbp")
+# ------------------------------------
+outcomes <- "glucose"
+n_digits <- 3
+race <- races[[1]]
+outcome <- outcomes[[1]]
+image_png <- image_read(paste0("UKBB_", race, "_", outcome, "_manhattan.png")) %>%
+  ukb_image_annotate("G6PC2", 295, 330, bold = TRUE, decoration = "underline") %>%
+  ukb_image_annotate("ABCB11", 295, 383) %>%
+  ukb_image_annotate("EIF5A2", 400, 270) %>%
+  ukb_image_annotate("SLC2A2", 405, 291, bold = TRUE, decoration = "underline") %>%
+  ukb_image_annotate("TARS1-DT", 510, 395) %>%
+  ukb_image_annotate("CAMK2B", 680, 283) %>%
+  ukb_image_annotate("YKT6", 722, 415) %>%
+  ukb_image_annotate("GCK", 673, 418, bold = TRUE, decoration = "underline") %>%
+  ukb_image_annotate("SLC30A8", 782, 385, bold = TRUE, decoration = "underline") %>%
+  ukb_image_annotate("TCF7L2", 920, 85, bold = TRUE, decoration = "underline") %>%
+  ukb_image_annotate("   CCND2\nCCND2-AS1", 980, 380) %>%
+  ukb_image_annotate(paste0("λ = ", 
+                            str_pad(round(lambda, n_digits),
+                                    n_digits + 1 + str_count(lambda, "[.]"), 
+                                    "right", 
+                                    pad = "0")
+                            ), 
+                     1375, 85, boxcolor = "grey", style = "normal") 
+image_write(image_png, path = paste0("UKBB_", race, "_", outcome, "_manhattan_annotated.png"), format = "png")
+```
+**Figure 9. Manhattan plots.** to be inserted here.
 
 <br>
 
