@@ -502,46 +502,18 @@ ukb_set_contents <- function(ht, ht_row, ht_cols, value){
   }
   return(ht)
 }
-ukb_set_merge_contents <- function(ht, ht_rows, ht_cols, value = FALSE){
+ukb_set_merge_contents <- function(ht, ht_rows, ht_cols){
   for(i in seq_along(ht_cols)){
     ht_col <- ht_cols[[i]]
     nrows <- max(ht_rows) - min(ht_rows) + 1
-    if(value == FALSE){
-      if (nrows == 1){
-        ht <- ht %>% 
-          set_contents(ht_rows, ht_col, .[ht_rows, ht_col])
-      } else if (nrows == 2){
-        ht <- ht %>% 
-          set_contents(ht_rows, ht_col, 
-                       paste0(.[min(ht_rows), ht_col], "\n", 
-                              .[min(ht_rows) + 1, ht_col]
-                       )
-          ) 
-      } else if (nrows == 3){
-        ht <- ht %>% 
-          set_contents(ht_rows, ht_col, 
-                       paste0(.[min(ht_rows), ht_col], "\n", 
-                              .[min(ht_rows) + 1, ht_col], "\n", 
-                              .[min(ht_rows) + 2, ht_col]
-                       )
-          ) 
-      } else if (nrows == 4){
-        ht <- ht %>% 
-          set_contents(ht_rows, ht_col, 
-                       paste0(.[min(ht_rows), ht_col], "\n", 
-                              .[min(ht_rows) + 1, ht_col], "\n", 
-                              .[min(ht_rows) + 2, ht_col], "\n", 
-                              .[min(ht_rows) + 3, ht_col]
-                       )
-          )
-      } else {
-        ht <- ht
-        stop("nrows is greater than 4!")
-      }
-    } else {
-      ht <- ht %>% set_contents(row, col, value)
-    }
-    ht <- ht %>% merge_cells(ht_rows, ht_col)
+    ht <- ht %>% 
+      set_contents(ht_rows, ht_col,
+                   gsub("NA", "", paste0(.[ht_rows, ht_col][[1]],
+                                         c(rep("\n", times = (nrows - 1)),
+                                           ""), collapse = "")
+                        )
+                   ) %>% 
+      merge_cells(ht_rows, ht_col)
     if(i == 1) ht_all <- ht[, 1:min(ht_col)] else ht_all <- add_columns(ht_all, ht[, ht_col])
   }
   return(ht_all)
@@ -649,10 +621,7 @@ ukb_hux_2 <- function(data, covariate_list, covariate_list_2, outcome){
         } else {
           factor_levels <- str_to_title(sapply(str_split(variable_data[[1]], ", "), `[`, 2))
           hux_var <- hux_var_2 %>%
-            set_contents(3, 2, paste(factor_levels, collapse = "\n")) %>%
-            set_contents(3, 5, gsub("NA", "", .[3, 5])) %>%
-            set_contents(3, 8, gsub("NA", "", .[3, 8])) %>%
-            set_contents(3, 11, gsub("NA", "", .[3, 11]))
+            set_contents(3, 2, paste(factor_levels, collapse = "\n")) 
         }
       } else {
         factor_levels <- str_to_title(sapply(str_split(variable_data[[1]], ", "), `[`, 2))
@@ -661,10 +630,7 @@ ukb_hux_2 <- function(data, covariate_list, covariate_list_2, outcome){
           merge_cells(3:5, 2) %>%
           set_contents(3, 1, covariate_list_2[[x]]) %>%
           set_contents(3, 2, paste(factor_levels, collapse = "\n")) %>%
-          ukb_set_merge_contents(3:5, 3:11) %>%
-          set_contents(3, 5, gsub("NA", "", .[3, 5])) %>%
-          set_contents(3, 8, gsub("NA", "", .[3, 8])) %>%
-          set_contents(3, 11, gsub("NA", "", .[3, 11]))
+          ukb_set_merge_contents(3:5, 3:11) 
       }
       if(x == 1) hux_all <- hux_var else hux_all <- add_rows(hux_all, hux_var[-1:-2,])
     }
