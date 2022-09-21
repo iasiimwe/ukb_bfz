@@ -428,20 +428,20 @@ analyzed <- bd_BFZ_df %>%
   filter(race == "White" | race == "Black" | race == "Asian") %>%
   nrow()
 
-analyzed_white <- ukb_subset(bd_BFZ_df, "White")
-analyzed_white_bp <- ukb_subset(bd_BFZ_df, "White", "sbp")
-analyzed_white_glucose <- ukb_subset(bd_BFZ_df, "White", "glucose")
-analyzed_white_urate <- ukb_subset(bd_BFZ_df, "White", "urate")
+analyzed_white <- ukb_subset_count(bd_BFZ_df, "White")
+analyzed_white_bp <- ukb_subset_count(bd_BFZ_df, "White", "sbp")
+analyzed_white_glucose <- ukb_subset_count(bd_BFZ_df, "White", "glucose")
+analyzed_white_urate <- ukb_subset_count(bd_BFZ_df, "White", "urate")
 
-analyzed_black <- ukb_subset(bd_BFZ_df, "Black")
-analyzed_black_bp <- ukb_subset(bd_BFZ_df, "Black", "sbp")
-analyzed_black_glucose <- ukb_subset(bd_BFZ_df, "Black", "glucose")
-analyzed_black_urate <- ukb_subset(bd_BFZ_df, "Black", "urate")
+analyzed_black <- ukb_subset_count(bd_BFZ_df, "Black")
+analyzed_black_bp <- ukb_subset_count(bd_BFZ_df, "Black", "sbp")
+analyzed_black_glucose <- ukb_subset_count(bd_BFZ_df, "Black", "glucose")
+analyzed_black_urate <- ukb_subset_count(bd_BFZ_df, "Black", "urate")
 
-analyzed_asian <- ukb_subset(bd_BFZ_df, "Asian")
-analyzed_asian_bp <- ukb_subset(bd_BFZ_df, "Asian", "sbp")
-analyzed_asian_glucose <- ukb_subset(bd_BFZ_df, "Asian", "glucose")
-analyzed_asian_urate <- ukb_subset(bd_BFZ_df, "Asian", "urate")
+analyzed_asian <- ukb_subset_count(bd_BFZ_df, "Asian")
+analyzed_asian_bp <- ukb_subset_count(bd_BFZ_df, "Asian", "sbp")
+analyzed_asian_glucose <- ukb_subset_count(bd_BFZ_df, "Asian", "glucose")
+analyzed_asian_urate <- ukb_subset_count(bd_BFZ_df, "Asian", "urate")
 ```
 
 <br>
