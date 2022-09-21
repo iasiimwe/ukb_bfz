@@ -941,9 +941,8 @@ bd_imp <- as_tibble(complete(tempData, 1, include = FALSE)) %>%
   ) %>%
   as_tibble() %>%
   select(-`(Intercept)`) 
-colnames(bd_imp)[1:13] <- c("age1", "age2", "age3", "age4", "age5", "age6",
-                            "sexMale", "bmi1", "bmi2", "bmi3", "bmi4", "bmi5",
-                            "bmi6")
+colnames(bd_imp)[1:9] <- c("age1", "age2", "age3", "age4", "sexMale", "bmi1", 
+                           "bmi2", "bmi3", "bmi4")
   
 # to matrix format
 categorical <- c("sexMale", "smoking_statusPrevious", "smoking_statusCurrent",
@@ -969,7 +968,7 @@ write.table(sample_file, file = paste("sample_", race_BFZ, ".sample", sep = ""),
             sep=" ", row.names=FALSE)
 # Manually edit the second row of the sample file to include D (discrete covariate),
 # C (continuous covariate), B (binary outcome) and P (continuous outcome).
-# 0 0 0 C C C C C C D C C C C C C D D D D C D D C C C C C C C C C C P P P P
+# 0 0 0 C C C C D C C C C D D D D C D D C C C C C C C C C C P P P P
 
 # Blacks and Asians
 # -----------------
