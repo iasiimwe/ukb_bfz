@@ -500,39 +500,38 @@ ukb_hux <- function(race_summary_all, covariate_list, covariate_list_2){
     index <- sapply(str_split(race_summary_all[[1]], ", "), `[`, 1) == variable
     variable_data <- race_summary_all[index, ]
     if(nrow(variable_data) > 0){
-      if(TRUE %in% str_detect(variable_data$statistic, "mean")) {
-        if (nrow(variable_data) == 2) {
-          hux_var <- as_hux(variable_data) %>%
-            set_contents(1, 1, "Variables") %>%
-            set_contents(1, 3, paste0(.[1, 3], " (<i>N</i> = ", ukb_comma(analyzed_white), ")")) %>%
-            set_contents(1, 4, paste0(.[1, 4], " (<i>N</i> = ", ukb_comma(analyzed_black), ")")) %>%
-            set_contents(1, 5, paste0(.[1, 5], " (<i>N</i> = ", ukb_comma(analyzed_asian), ")")) %>%
-            merge_cells(1, 1:2) %>%
-            set_header_rows(1, TRUE) %>%
-            style_headers(bold = TRUE, text_color = "black", 
-                          background_color = "light blue") %>%
-            set_all_borders(value = 0.8) %>%
-            merge_cells(2:3, 1) %>%
-            merge_cells(2:3, 2) %>%
-            set_contents(2, 1, covariate_list_2[[x]]) %>%
-            set_contents(2, 2, "Mean (SD)\nMedian (IQR; range)") %>%
-            set_contents(2, 3, paste0(.[2, 3], "\n", .[3, 3])) %>%
-            merge_cells(2:3, 3) %>%
-            set_contents(2, 4, paste0(.[2, 4], "\n", .[3, 4])) %>%
-            merge_cells(2:3, 4) %>%
-            set_contents(2, 5, paste0(.[2, 5], "\n", .[3, 5])) %>%
-            merge_cells(2:3, 5)
-        } else {
-          hux_var <- as_hux(variable_data) %>%
-            set_contents(1, 1, "Variables") %>%
-            set_contents(1, 3, paste0(.[1, 3], " (N = ", ukb_comma(analyzed_white), ")")) %>%
-            set_contents(1, 4, paste0(.[1, 4], " (N = ", ukb_comma(analyzed_black), ")")) %>%
-            set_contents(1, 5, paste0(.[1, 5], " (N = ", ukb_comma(analyzed_asian), ")")) %>%
-            merge_cells(1, 1:2) %>%
-            set_header_rows(1, TRUE) %>%
-            style_headers(bold = TRUE, text_color = "black", 
-                          background_color = "light blue") %>%
-            set_all_borders(value = 0.8) %>%
+      hux_header <- as_hux(variable_data) %>%
+        set_contents(1, 1, "Variables") %>%
+        set_contents(1, 3, paste0(.[1, 3], " (<i>N</i> = ", ukb_comma(analyzed_white), ")")) %>%
+        set_contents(1, 4, paste0(.[1, 4], " (<i>N</i> = ", ukb_comma(analyzed_black), ")")) %>%
+        set_contents(1, 5, paste0(.[1, 5], " (<i>N</i> = ", ukb_comma(analyzed_asian), ")")) %>%
+        merge_cells(1, 1:2) %>%
+        set_header_rows(1, TRUE) %>%
+        style_headers(bold = TRUE, text_color = "black", 
+                      background_color = "light blue") %>%
+        set_all_borders(value = 0.8)
+      if (nrow(variable_data) == 2) {
+        hux_var_2 <- hux_header %>%
+          merge_cells(2:3, 1) %>%
+          merge_cells(2:3, 2) %>%
+          set_contents(2, 1, covariate_list_2[[x]]) %>%
+          set_contents(2, 3, paste0(.[2, 3], "\n", .[3, 3])) %>%
+          merge_cells(2:3, 3) %>%
+          set_contents(2, 4, paste0(.[2, 4], "\n", .[3, 4])) %>%
+          merge_cells(2:3, 4) %>%
+          set_contents(2, 5, paste0(.[2, 5], "\n", .[3, 5])) %>%
+          merge_cells(2:3, 5)
+        if(TRUE %in% str_detect(variable_data$statistic, "mean")){
+          hux_var <- hux_var_2 %>%
+            set_contents(2, 2, "Mean (SD)\nMedian (IQR; range)")
+          } else {
+          factor_levels <- str_to_title(sapply(str_split(variable_data[[1]], ", "), `[`, 2))
+          hux_var <- hux_var_2 %>%
+            set_contents(2, 2, paste(factor_levels, collapse = "\n"))
+          }
+      } else{
+        if(TRUE %in% str_detect(variable_data$statistic, "mean")) {
+          hux_var <- hux_header %>%
             merge_cells(2:4, 1) %>%
             merge_cells(2:4, 2) %>%
             set_contents(2, 1, covariate_list_2[[x]]) %>%
@@ -544,42 +543,9 @@ ukb_hux <- function(race_summary_all, covariate_list, covariate_list_2){
             merge_cells(2:4, 4) %>%
             set_contents(2, 5, paste0(.[2, 5], "\n", .[3, 5], "\n", .[4, 5])) %>%
             merge_cells(2:4, 5)
-        }
-        if(x == 1) hux_all <- hux_var else hux_all <- add_rows(hux_all, hux_var[-1,])
-      } else {
-        factor_levels <- str_to_title(sapply(str_split(variable_data[[1]], ", "), `[`, 2))
-        if (nrow(variable_data) == 2) {
-          hux_var <- as_hux(variable_data) %>%
-            set_contents(1, 1, "Variables") %>%
-            set_contents(1, 3, paste0(.[1, 3], " (N = ", ukb_comma(analyzed_white), ")")) %>%
-            set_contents(1, 4, paste0(.[1, 4], " (N = ", ukb_comma(analyzed_black), ")")) %>%
-            set_contents(1, 5, paste0(.[1, 5], " (N = ", ukb_comma(analyzed_asian), ")")) %>%
-            merge_cells(1, 1:2) %>%
-            set_header_rows(1, TRUE) %>%
-            style_headers(bold = TRUE, text_color = "black", 
-                          background_color = "light blue") %>%
-            set_all_borders(value = 0.8) %>%
-            merge_cells(2:3, 1) %>%
-            merge_cells(2:3, 2) %>%
-            set_contents(2, 1, covariate_list_2[[x]]) %>%
-            set_contents(2, 2, paste(factor_levels, collapse = "\n")) %>%
-            set_contents(2, 3, paste0(.[2, 3], "\n", .[3, 3])) %>%
-            merge_cells(2:3, 3) %>%
-            set_contents(2, 4, paste0(.[2, 4], "\n", .[3, 4])) %>%
-            merge_cells(2:3, 4) %>%
-            set_contents(2, 5, paste0(.[2, 5], "\n", .[3, 5])) %>%
-            merge_cells(2:3, 5)
         } else {
-          hux_var <- as_hux(variable_data) %>%
-            set_contents(1, 1, "Variables") %>%
-            set_contents(1, 3, paste0(.[1, 3], " (N = ", ukb_comma(analyzed_white), ")")) %>%
-            set_contents(1, 4, paste0(.[1, 4], " (N = ", ukb_comma(analyzed_black), ")")) %>%
-            set_contents(1, 5, paste0(.[1, 5], " (N = ", ukb_comma(analyzed_asian), ")")) %>%
-            merge_cells(1, 1:2) %>%
-            set_header_rows(1, TRUE) %>%
-            style_headers(bold = TRUE, text_color = "black", 
-                          background_color = "light blue") %>%
-            set_all_borders(value = 0.8) %>%
+          factor_levels <- str_to_title(sapply(str_split(variable_data[[1]], ", "), `[`, 2))
+          hux_var <- hux_header %>%
             merge_cells(2:5, 1) %>%
             merge_cells(2:5, 2) %>%
             set_contents(2, 1, covariate_list_2[[x]]) %>%
@@ -591,10 +557,10 @@ ukb_hux <- function(race_summary_all, covariate_list, covariate_list_2){
             set_contents(2, 5, paste0(.[2, 5], "\n", .[3, 5], "\n", .[4, 5], "\n", .[5, 5])) %>%
             merge_cells(2:5, 5)
         }
-        if(x == 1) hux_all <- hux_var else hux_all <- add_rows(hux_all, hux_var[-1,])
       }
+      if(x == 1) hux_all <- hux_var else hux_all <- add_rows(hux_all, hux_var[-1,])
     }
-  }
+    }
   return(hux_all)
 }
 
@@ -605,46 +571,46 @@ ukb_hux_2 <- function(data, covariate_list, covariate_list_2, outcome){
     index <- sapply(str_split(data[[1]], ", "), `[`, 1) == variable
     variable_data <- data[index, ]
     if(nrow(variable_data) > 0){
-      if(TRUE %in% str_detect(variable_data$statistic, "mean")) {
-        hux_var <- as_hux(variable_data) %>%
-          insert_row(after = 0, colspan = length(.), fill = "") %>%
-          set_contents(1, 1, "Variables") %>%
-          set_contents(1, 3, paste0("White (<i>N</i> = ", ukb_comma(analyzed_white), ")")) %>%
-          set_contents(1, 6, paste0("Black (<i>N</i> = ", ukb_comma(analyzed_black), ")")) %>%
-          set_contents(1, 9, paste0("Asian (<i>N</i> = ", ukb_comma(analyzed_asian), ")")) %>%
-          merge_cells(1:2, 1:2) %>%
-          merge_cells(1, 3:5) %>%
-          merge_cells(1, 6:8) %>%
-          merge_cells(1, 9:11) %>%
-          set_contents(2, 3, paste0("Included (<i>N</i> = ", 
-                                    ukb_comma(nrow_included_outcomes[[outcome]][1]), ")")) %>%
-          set_contents(2, 4, paste0("Excluded (<i>N</i> = ", 
-                                    ukb_comma(nrow_excluded_outcomes[[outcome]][1]), ")")) %>%
-          set_contents(2, 5, paste0("<i>P</i> value<sup>a</sup>")) %>%
-          set_contents(2, 6, paste0("Included (<i>N</i> = ", 
-                                    ukb_comma(nrow_included_outcomes[[outcome]][2]), ")")) %>%
-          set_contents(2, 7, paste0("Excluded (<i>N</i> = ", 
-                                    ukb_comma(nrow_excluded_outcomes[[outcome]][2]), ")")) %>%
-          set_contents(2, 8, paste0("<i>P</i> value<sup>a</sup>")) %>%
-          set_contents(2, 9, paste0("Included (<i>N</i> = ", 
-                                    ukb_comma(nrow_included_outcomes[[outcome]][3]), ")")) %>%
-          set_contents(2, 10, paste0("Excluded (<i>N</i> = ", 
-                                     ukb_comma(nrow_excluded_outcomes[[outcome]][3]), ")")) %>%
-          set_contents(2, 11, paste0("<i>P</i> value<sup>a</sup>")) %>%
-          set_header_rows(1:2, TRUE) %>%
-          style_headers(bold = TRUE, text_color = "black", 
-                        background_color = "light blue") %>%
-          set_all_borders(value = 0.8) %>%
+      hux_header <- as_hux(variable_data) %>%
+        insert_row(after = 0, colspan = length(.), fill = "") %>%
+        set_contents(1, 1, "Variables") %>%
+        set_contents(1, 3, paste0("White (<i>N</i> = ", ukb_comma(analyzed_white), ")")) %>%
+        set_contents(1, 6, paste0("Black (<i>N</i> = ", ukb_comma(analyzed_black), ")")) %>%
+        set_contents(1, 9, paste0("Asian (<i>N</i> = ", ukb_comma(analyzed_asian), ")")) %>%
+        merge_cells(1:2, 1:2) %>%
+        merge_cells(1, 3:5) %>%
+        merge_cells(1, 6:8) %>%
+        merge_cells(1, 9:11) %>%
+        set_contents(2, 3, paste0("Included (<i>N</i> = ", 
+                                  ukb_comma(nrow_included_outcomes[[outcome]][1]), ")")) %>%
+        set_contents(2, 4, paste0("Excluded (<i>N</i> = ", 
+                                  ukb_comma(nrow_excluded_outcomes[[outcome]][1]), ")")) %>%
+        set_contents(2, 5, paste0("<i>P</i> value<sup>a</sup>")) %>%
+        set_contents(2, 6, paste0("Included (<i>N</i> = ", 
+                                  ukb_comma(nrow_included_outcomes[[outcome]][2]), ")")) %>%
+        set_contents(2, 7, paste0("Excluded (<i>N</i> = ", 
+                                  ukb_comma(nrow_excluded_outcomes[[outcome]][2]), ")")) %>%
+        set_contents(2, 8, paste0("<i>P</i> value<sup>a</sup>")) %>%
+        set_contents(2, 9, paste0("Included (<i>N</i> = ", 
+                                  ukb_comma(nrow_included_outcomes[[outcome]][3]), ")")) %>%
+        set_contents(2, 10, paste0("Excluded (<i>N</i> = ", 
+                                   ukb_comma(nrow_excluded_outcomes[[outcome]][3]), ")")) %>%
+        set_contents(2, 11, paste0("<i>P</i> value<sup>a</sup>")) %>%
+        set_header_rows(1:2, TRUE) %>%
+        style_headers(bold = TRUE, text_color = "black", 
+                      background_color = "light blue") %>%
+        set_all_borders(value = 0.8)
+      if (nrow(variable_data) == 2) {
+        hux_var_2 <- hux_header %>%
           merge_cells(3:4, 1) %>%
           merge_cells(3:4, 2) %>%
           set_contents(3, 1, covariate_list_2[[x]]) %>%
-          set_contents(3, 2, "Mean (SD)\nMedian (IQR; range)") %>%
           set_contents(3, 3, paste0(.[3, 3], "\n", .[4, 3])) %>%
           merge_cells(3:4, 3) %>%
           set_contents(3, 4, paste0(.[3, 4], "\n", .[4, 4])) %>%
           merge_cells(3:4, 4) %>%
           set_contents(3, 5, paste0(.[3, 5], "\n", .[4, 5])) %>%
-          merge_cells(3:4, 5)  %>%
+          merge_cells(3:4, 5) %>%
           set_contents(3, 6, paste0(.[3, 6], "\n", .[4, 6])) %>%
           merge_cells(3:4, 6) %>%
           set_contents(3, 7, paste0(.[3, 7], "\n", .[4, 7])) %>%
@@ -657,117 +623,45 @@ ukb_hux_2 <- function(data, covariate_list, covariate_list_2, outcome){
           merge_cells(3:4, 10) %>%
           set_contents(3, 11, paste0(.[3, 11], "\n", .[4, 11])) %>%
           merge_cells(3:4, 11)
-        if(x == 1) hux_all <- hux_var else hux_all <- add_rows(hux_all, hux_var[-1:-2,])
+        if(TRUE %in% str_detect(variable_data$statistic, "mean")){
+          hux_var <- hux_var_2 %>%
+            set_contents(3, 2, "Mean (SD)\nMedian (IQR; range)")
+        } else {
+          factor_levels <- str_to_title(sapply(str_split(variable_data[[1]], ", "), `[`, 2))
+          hux_var <- hux_var_2 %>%
+            set_contents(3, 2, paste(factor_levels, collapse = "\n")) %>%
+            set_contents(3, 5, gsub("NA", "", .[3, 5])) %>%
+            set_contents(3, 8, gsub("NA", "", .[3, 8])) %>%
+            set_contents(3, 11, gsub("NA", "", .[3, 11]))
+        }
       } else {
         factor_levels <- str_to_title(sapply(str_split(variable_data[[1]], ", "), `[`, 2))
-        if (nrow(variable_data) == 2) {
-          hux_var <- as_hux(variable_data) %>%
-            insert_row(after = 0, colspan = length(.), fill = "") %>%
-            set_contents(1, 1, "Variables") %>%
-            set_contents(1, 3, paste0("White (<i>N</i> = ", ukb_comma(analyzed_white), ")")) %>%
-            set_contents(1, 6, paste0("Black (<i>N</i> = ", ukb_comma(analyzed_black), ")")) %>%
-            set_contents(1, 9, paste0("Asian (<i>N</i> = ", ukb_comma(analyzed_asian), ")")) %>%
-            merge_cells(1:2, 1:2) %>%
-            merge_cells(1, 3:5) %>%
-            merge_cells(1, 6:8) %>%
-            merge_cells(1, 9:11) %>%
-            set_contents(2, 3, paste0("Included (<i>N</i> = ", 
-                                      ukb_comma(nrow_included_outcomes[[outcome]][1]), ")")) %>%
-            set_contents(2, 4, paste0("Excluded (<i>N</i> = ", 
-                                      ukb_comma(nrow_excluded_outcomes[[outcome]][1]), ")")) %>%
-            set_contents(2, 5, paste0("<i>P</i> value<sup>a</sup>")) %>%
-            set_contents(2, 6, paste0("Included (<i>N</i> = ", 
-                                      ukb_comma(nrow_included_outcomes[[outcome]][2]), ")")) %>%
-            set_contents(2, 7, paste0("Excluded (<i>N</i> = ", 
-                                      ukb_comma(nrow_excluded_outcomes[[outcome]][2]), ")")) %>%
-            set_contents(2, 8, paste0("<i>P</i> value<sup>a</sup>")) %>%
-            set_contents(2, 9, paste0("Included (<i>N</i> = ", 
-                                      ukb_comma(nrow_included_outcomes[[outcome]][3]), ")")) %>%
-            set_contents(2, 10, paste0("Excluded (<i>N</i> = ", 
-                                       ukb_comma(nrow_excluded_outcomes[[outcome]][3]), ")")) %>%
-            set_contents(2, 11, paste0("<i>P</i> value<sup>a</sup>")) %>%
-            set_header_rows(1:2, TRUE) %>%
-            style_headers(bold = TRUE, text_color = "black", 
-                          background_color = "light blue") %>%
-            set_all_borders(value = 0.8) %>%
-            merge_cells(3:4, 1) %>%
-            merge_cells(3:4, 2) %>%
-            set_contents(3, 1, covariate_list_2[[x]]) %>%
-            set_contents(3, 2, paste(factor_levels, collapse = "\n")) %>%
-            set_contents(3, 3, paste0(.[3, 3], "\n", .[4, 3])) %>%
-            merge_cells(3:4, 3) %>%
-            set_contents(3, 4, paste0(.[3, 4], "\n", .[4, 4])) %>%
-            merge_cells(3:4, 4) %>%
-            set_contents(3, 5, paste0(.[3, 5])) %>%
-            merge_cells(3:4, 5)  %>%
-            set_contents(3, 6, paste0(.[3, 6], "\n", .[4, 6])) %>%
-            merge_cells(3:4, 6) %>%
-            set_contents(3, 7, paste0(.[3, 7], "\n", .[4, 7])) %>%
-            merge_cells(3:4, 7) %>%
-            set_contents(3, 8, paste0(.[3, 8])) %>%
-            merge_cells(3:4, 8)  %>%
-            set_contents(3, 9, paste0(.[3, 9], "\n", .[4, 9])) %>%
-            merge_cells(3:4, 9) %>%
-            set_contents(3, 10, paste0(.[3, 10], "\n", .[4, 10])) %>%
-            merge_cells(3:4, 10) %>%
-            set_contents(3, 11, paste0(.[3, 11])) %>%
-            merge_cells(3:4, 11)
-        } else {
-          hux_var <- as_hux(variable_data) %>%
-            insert_row(after = 0, colspan = length(.), fill = "") %>%
-            set_contents(1, 1, "Variables") %>%
-            set_contents(1, 3, paste0("White (<i>N</i> = ", ukb_comma(analyzed_white), ")")) %>%
-            set_contents(1, 6, paste0("Black (<i>N</i> = ", ukb_comma(analyzed_black), ")")) %>%
-            set_contents(1, 9, paste0("Asian (<i>N</i> = ", ukb_comma(analyzed_asian), ")")) %>%
-            merge_cells(1:2, 1:2) %>%
-            merge_cells(1, 3:5) %>%
-            merge_cells(1, 6:8) %>%
-            merge_cells(1, 9:11) %>%
-            set_contents(2, 3, paste0("Included (<i>N</i> = ", 
-                                      ukb_comma(nrow_included_outcomes[[outcome]][1]), ")")) %>%
-            set_contents(2, 4, paste0("Excluded (<i>N</i> = ", 
-                                      ukb_comma(nrow_excluded_outcomes[[outcome]][1]), ")")) %>%
-            set_contents(2, 5, paste0("<i>P</i> value<sup>a</sup>")) %>%
-            set_contents(2, 6, paste0("Included (<i>N</i> = ", 
-                                      ukb_comma(nrow_included_outcomes[[outcome]][2]), ")")) %>%
-            set_contents(2, 7, paste0("Excluded (<i>N</i> = ", 
-                                      ukb_comma(nrow_excluded_outcomes[[outcome]][2]), ")")) %>%
-            set_contents(2, 8, paste0("<i>P</i> value<sup>a</sup>")) %>%
-            set_contents(2, 9, paste0("Included (<i>N</i> = ", 
-                                      ukb_comma(nrow_included_outcomes[[outcome]][3]), ")")) %>%
-            set_contents(2, 10, paste0("Excluded (<i>N</i> = ", 
-                                       ukb_comma(nrow_excluded_outcomes[[outcome]][3]), ")")) %>%
-            set_contents(2, 11, paste0("<i>P</i> value<sup>a</sup>")) %>%
-            set_header_rows(1:2, TRUE) %>%
-            style_headers(bold = TRUE, text_color = "black", 
-                          background_color = "light blue") %>%
-            set_all_borders(value = 0.8) %>%
-            merge_cells(3:5, 1) %>%
-            merge_cells(3:5, 2) %>%
-            set_contents(3, 1, covariate_list_2[[x]]) %>%
-            set_contents(3, 2, paste(factor_levels, collapse = "\n")) %>%
-            set_contents(3, 3, paste0(.[3, 3], "\n", .[4, 3], "\n", .[5, 3])) %>%
-            merge_cells(3:5, 3) %>%
-            set_contents(3, 4, paste0(.[3, 4], "\n", .[4, 4], "\n", .[5, 4])) %>%
-            merge_cells(3:5, 4) %>%
-            set_contents(3, 5, paste0(.[3, 5])) %>%
-            merge_cells(3:5, 5)  %>%
-            set_contents(3, 6, paste0(.[3, 6], "\n", .[4, 6], "\n", .[5, 6])) %>%
-            merge_cells(3:5, 6) %>%
-            set_contents(3, 7, paste0(.[3, 7], "\n", .[4, 7], "\n", .[5, 7])) %>%
-            merge_cells(3:5, 7) %>%
-            set_contents(3, 8, paste0(.[3, 8])) %>%
-            merge_cells(3:5, 8)  %>%
-            set_contents(3, 9, paste0(.[3, 9], "\n", .[4, 9], "\n", .[5, 9])) %>%
-            merge_cells(3:5, 9) %>%
-            set_contents(3, 10, paste0(.[3, 10], "\n", .[4, 10], "\n", .[5, 10])) %>%
-            merge_cells(3:5, 10) %>%
-            set_contents(3, 11, paste0(.[3, 11])) %>%
-            merge_cells(3:5, 11)
-        }
-        if(x == 1) hux_all <- hux_var else hux_all <- add_rows(hux_all, hux_var[-1:-2,])
+        hux_var <- hux_header %>%
+          merge_cells(3:5, 1) %>%
+          merge_cells(3:5, 2) %>%
+          set_contents(3, 1, covariate_list_2[[x]]) %>%
+          set_contents(3, 2, paste(factor_levels, collapse = "\n")) %>%
+          set_contents(3, 3, paste0(.[3, 3], "\n", .[4, 3], "\n", .[5, 3])) %>%
+          merge_cells(3:5, 3) %>%
+          set_contents(3, 4, paste0(.[3, 4], "\n", .[4, 4], "\n", .[5, 4])) %>%
+          merge_cells(3:5, 4) %>%
+          set_contents(3, 5, paste0(.[3, 5])) %>%
+          merge_cells(3:5, 5)  %>%
+          set_contents(3, 6, paste0(.[3, 6], "\n", .[4, 6], "\n", .[5, 6])) %>%
+          merge_cells(3:5, 6) %>%
+          set_contents(3, 7, paste0(.[3, 7], "\n", .[4, 7], "\n", .[5, 7])) %>%
+          merge_cells(3:5, 7) %>%
+          set_contents(3, 8, paste0(.[3, 8])) %>%
+          merge_cells(3:5, 8)  %>%
+          set_contents(3, 9, paste0(.[3, 9], "\n", .[4, 9], "\n", .[5, 9])) %>%
+          merge_cells(3:5, 9) %>%
+          set_contents(3, 10, paste0(.[3, 10], "\n", .[4, 10], "\n", .[5, 10])) %>%
+          merge_cells(3:5, 10) %>%
+          set_contents(3, 11, paste0(.[3, 11])) %>%
+          merge_cells(3:5, 11)
       }
-    }
+      if(x == 1) hux_all <- hux_var else hux_all <- add_rows(hux_all, hux_var[-1:-2,])
+     }
   }
   return(hux_all)
 }
