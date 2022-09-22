@@ -670,7 +670,7 @@ ukb_lambda <- function(data) {
 #           already exists.
 # Output: data frame (.csv and .rds files) that contains associated genes as well 
 #         as SNP locations (e.g. introns) 
-ukb_dbsnp <- function(race, outcome, n_digits = 5) {
+ukb_dbsnp <- function(race, outcome, n_digits = 3) {
   file <- fread(paste0("UKBB_", race, "_", outcome, ".csv")) 
   N <- unique(file$all_total)
   file <- file %>%
@@ -680,7 +680,7 @@ ukb_dbsnp <- function(race, outcome, n_digits = 5) {
                              n_digits + 1 + str_count(all_maf, "[-.]"), 
                              "right", 
                              pad = "0"
-           ),
+                             ),
            `Beta (SE)` = paste0(str_pad(round(frequentist_add_beta_1, n_digits), 
                                         n_digits + 1 + str_count(frequentist_add_beta_1, "[-.]"), 
                                         "right", 
@@ -691,16 +691,18 @@ ukb_dbsnp <- function(race, outcome, n_digits = 5) {
                                         "right", 
                                         pad = "0"),
                                 ")"
-           )
+                                ),
+           info = round(info, n_digits),
+           `#` = seq.int(nrow(.))
     ) %>%
-    rename(Chromosome = CHR,
+    rename(Chr = CHR,
            Position = BP,
            `P value` = P,
-           `Reference allele` = alleleA,
-           `Alternative allele` = alleleB,
+           `Ref allele` = alleleA,
+           `Alt allele` = alleleB,
            `Info score` = info
     ) %>%
-    select(SNP:Position, Gene, `Functional consequence`, `Reference allele`:`Info score`,
+    select(`#`, SNP:Position, Gene, `Functional consequence`, `Ref allele`:`Info score`,
            all_maf, `Beta (SE)`, `P value`)
   colnames(file)[which(colnames(file) == "all_maf")] <- paste0("MAF (N = ", N, ")")
   for (k in 1:nrow(file)) {
@@ -721,7 +723,8 @@ ukb_dbsnp <- function(race, outcome, n_digits = 5) {
         gsub(",", ", ", .) %>%
         gsub("_|:", " ", .) %>%
         gsub("non coding", "non-coding", .) %>%
-        gsub("Clinicalsignificance", "; Clinical significance", .) %>%
+        gsub("Clinicalsignificance", "; Clinical significance:", .) %>%
+        gsub(" transcript| variant", "", .) %>%
         gsub("prime", "-prime", .)
     }
     message(paste(round(k / nrow(file) * 100, 3), "% complete", sep = ""))
@@ -744,4 +747,46 @@ ukb_image_annotate <- function(image, text, x = 0, y = 0,  size = 20, color = "b
   image_annotate(image = image, text = text, size = size, color = color, boxcolor = boxcolor, degrees = degrees, 
                  location = paste0("+", x, "+", y), font = font, style = style, 
                  weight = weight, decoration = decoration, kerning = kerning)
+}
+
+# 18. Splitting text and tables
+# -----------------------------
+# Aim: to enable strings fit in huxtables, and tables on pages     
+# Input(s): a string or long table.
+# Output: string with "\n" inserted or split tables.
+ukb_split_text <- function(text, n_digits = 5) {
+  split_text <- strsplit(text, "")[[1]]
+  parts <- ceiling(length(split_text)/n_digits)
+  for (x in 1:parts){
+    y <- n_digits
+    start <- (y * (x - 1) + 1)
+    end <- min((y * (x - 1) + y), length(split_text))
+    if (x == parts) {
+      comb_text <- paste0(split_text[start:end], collapse = "")
+    } else {
+      comb_text <- paste0(paste0(split_text[start:end], collapse = ""), "\n", collapse = "")
+    }
+    if (x == 1) all_text <- comb_text else all_text <- paste0(all_text, comb_text, collapse = "")
+  }
+  return(all_text)
+}
+
+ukb_split_across <- function(ht, n_rows = 50) {
+  parts <- ceiling(nrow(ht) / n_rows)
+  output <- vector("list", parts)
+  for (x in 1:parts){
+    y <- n_rows
+    start <- (y * (x - 1) + 1) 
+    end <- min((y * (x - 1) + y + 1), nrow(ht))
+    if (x == 1) {
+      ht_2 <- split_across(ht, after = end)[[1]]
+    } else if (x == parts) {
+      ht_2 <- split_across(ht, after = start)[[2]]
+    } else {
+      ht_2 <- split_across(ht, after = c(start, end))[[2]]
+    }
+    output[[x]] <- ht_2
+    quick_html(ht_2, file = paste0("hux_table_4", "_", x, "_", race, "_", outcome, ".html"), open = FALSE)
+  }
+  return(output)
 }
