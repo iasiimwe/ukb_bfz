@@ -803,12 +803,8 @@ for(i in seq_along(races)){
   
   bd_BFZ_race <- bd_BFZ_df %>% 
     filter(race == race_BFZ) %>%
-    select(age:pa, sbp, dbp, glucose, urate)
-  
-  new_covariates <- bd_BFZ %>% keep(is.numeric) %>% colnames()
-  
-  bd_BFZ_race <- bd_BFZ_race %>%
-    select(new_covariates) 
+    select(age:pa, sbp, dbp, glucose, urate) %>% 
+    keep(is.numeric) 
   
   png(paste(race_BFZ, "_correlation_log_plot.png", sep =""), 
       width=1500, height=1500, res=120)
