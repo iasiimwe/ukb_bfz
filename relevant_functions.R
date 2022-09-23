@@ -771,8 +771,8 @@ ukb_split_text <- function(text, n_digits = 5) {
   return(all_text)
 }
 
-ukb_split_across <- function(ht, n_rows = 50) {
-  parts <- ceiling(nrow(ht) / n_rows)
+ukb_split_across <- function(ht, n_rows = 50, print_hux = TRUE) {
+  parts <- ceiling((nrow(ht) - 1) / n_rows)
   output <- vector("list", parts)
   for (x in 1:parts){
     y <- n_rows
@@ -786,7 +786,127 @@ ukb_split_across <- function(ht, n_rows = 50) {
       ht_2 <- split_across(ht, after = c(start, end))[[2]]
     }
     output[[x]] <- ht_2
-    quick_html(ht_2, file = paste0("hux_table_4", "_", x, "_", race, "_", outcome, ".html"), open = FALSE)
+    if (print_hux == TRUE) {
+      quick_html(ht_2, file = paste0("hux_table_4", "_", x, "_", race, "_", outcome, ".html"), open = FALSE)
+    }
   }
   return(output)
+}
+
+# 19. Getting gene summary
+# ------------------------
+# Aim: to obtain gene summary from https://www.ncbi.nlm.nih.gov/gene.       
+# Input(s): vectors of races and outcomes. 
+#           P-value threshold (default 5e-8) for SNPs whose associated genes are 
+#           required.
+#           Assumes at least one race- and outcome-specific file (.csv output of 
+#           ukb_dbsnp()) is available in the environment.
+# Output: summary e.g. gene of the genes associated with the top SNPs.
+ukb_genes_summary <- function(races, outcomes, p_value = 5e-8) {
+  for(i in seq_along(races)) {
+    race <- races[[i]]
+    for(j in seq_along(outcomes)){
+      outcome <- outcomes[[j]]
+      genes_race_outcome <- as_tibble(fread(paste0("UKBB_", race, "_", outcome, "_final.csv"))) %>%
+        filter (`P value` < p_value) %>%
+        select(Gene) %>%
+        na.omit() %>%
+        unique() 
+      genes_race_outcome <- unique(unlist(str_split(genes_race_outcome$Gene, ", ")))
+      if(j == 1) genes_race <- genes_race_outcome 
+      else genes_race <- unique(bind_rows(genes_race, genes_race_outcome))
+    }
+    if(i == 1) genes <- genes_race 
+    else genes <- unique(bind_rows(genes, genes_race))
+  }
+  gene_summary <- tibble(Gene = rep("NA", length(genes)),
+                         ID = rep("NA", length(genes)),
+                         Symbol = rep("NA", length(genes)), 
+                         `Gene name` = rep("NA", length(genes)),
+                         `Also known as` = rep("NA", length(genes)),
+                         Type = rep("NA", length(genes)),
+                         Summary = rep("NA", length(genes)),
+                         Expression = rep("NA", length(genes)),
+                         `Annotation info` = rep("NA", length(genes))
+                         )
+  for(k in seq_along(genes)) {
+    gene <- genes[[k]]
+    gene_summary$Gene[[k]] <- gene
+    
+    # obtain gene id
+    gene_id <- paste0("https://www.ncbi.nlm.nih.gov/gene/?term=", gene) %>%
+      read_html() %>%
+      html_nodes(xpath = '//*[@id="padded_content"]') %>%
+      html_text() %>%
+      gsub("[\n()]|  ", "", .) %>% 
+      str_extract("Gene ID: .*PubMed") %>%
+      str_extract("Gene ID: .*RefSeq transcripts") %>%
+      gsub("Gene ID: |RefSeq transcripts", "", .)
+    if (is.na(gene_id) == TRUE && str_detect(gene, "LOC") == TRUE) 
+      gene_id <- gsub("LOC", "", gene)
+    gene_summary$ID[[k]] <- gene_id
+    
+    # use gene id to obtain info (preferred to name as names could have changed)
+    gene_info <- paste0("https://www.ncbi.nlm.nih.gov/gene/", gene_id) %>%
+      read_html() 
+    
+    # obtain official symbol
+    gene_summary$Symbol[[k]] <- gene_info %>%
+      html_elements(xpath = '//*[@id="summaryDl"]/dd[1]/text()') %>%
+      html_text() 
+    
+    # obtain gene_name
+    gene_name <- gene_info %>%
+      html_elements(xpath = '//*[@id="summaryDl"]/dd[2]/text()') %>%
+      html_text() 
+    gene_summary$`Gene name`[[k]] <- gene_name
+    
+    gene_info_2 <- gene_info %>%
+      html_elements(xpath = '//*[@id="summaryDl"]') %>%
+      html_text() %>%
+      gsub("[\n]|  ", "", .)
+    
+    # obtain gene alias
+    gene_summary$`Also known as`[[k]] <- gene_info_2 %>% 
+      str_extract("Also known as.*Summary") %>%
+      gsub("Also known as|Summary", "", .)
+    
+    # obtain gene type
+    gene_summary$Type[[k]] <- gene_info_2 %>% 
+      str_extract("Gene type.*RefSeq ") %>%
+      gsub("Gene type|RefSeq ", "", .)
+    
+    # obtain gene summary
+    gene_summary$Summary[[k]] <- gene_info_2 %>% 
+      str_extract("Summary.*\\[provided by") %>%
+      gsub("Summary|\\[provided by", "", .)
+    
+    # obtain gene expression
+    gene_expression <- gene_info_2 %>% 
+      str_extract("Expression.*Orthologs") %>%
+      gsub("Expression|Orthologs", "", .)
+    if (TRUE %in% str_detect(gene_expression, "See more")) {
+      gene_expression <- paste0("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=gene&id=",
+                                gene_id,
+                                "&retmode=xml") %>%
+        read_html() %>%
+        html_nodes(xpath = '/html/body') %>%
+        html_text() %>%
+        gsub("[\n]|  ", "", .) %>%
+        str_extract("Expression[0-9]*Text Summary.*[0-9]*Category") %>%
+        gsub("Expression[0-9]*Text Summary|[0-9]*Category", "", .) %>% 
+        gsub("254", ". ", .) %>%
+        gsub("Tissue List", "Tissue List: ", .)
+    }
+    gene_summary$Expression[[k]] <- gene_expression
+    
+    # obtain gene annotation information
+    gene_summary$`Annotation info`[[k]] <- gene_info_2 %>% 
+      str_extract("Annotation information.*Expression") %>%
+      gsub("Annotation information|Expression", "", .)
+    
+    message(paste(round(k / length(genes) * 100, 3), "% complete", sep = ""))
+    if(k %% 100 == 0) {Sys.sleep(10)} # Pause for 10 seconds after every 100 requests
+  }
+  return(gene_summary)
 }
