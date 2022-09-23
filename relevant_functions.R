@@ -502,6 +502,7 @@ ukb_set_contents <- function(ht, ht_row, ht_cols, value) {
   }
   return(ht)
 }
+
 ukb_set_merge_contents <- function(ht, ht_rows, ht_cols) {
   for (i in seq_along(ht_cols)) {
     ht_col <- ht_cols[[i]]
@@ -642,7 +643,51 @@ ukb_hux_2 <- function(data, covariate_list, covariate_list_2, outcome) {
   return(hux_all)
 }
 
-# 14. Subsetting function
+# 14. Splitting text and tables
+# -----------------------------
+# Aim: to enable strings fit in huxtables, and tables on pages     
+# Input(s): a string or long table.
+# Output: string with "\n" inserted or split tables.
+ukb_split_text <- function(text, n_digits = 5) {
+  split_text <- strsplit(text, "")[[1]]
+  parts <- ceiling(length(split_text)/n_digits)
+  for (x in 1:parts){
+    y <- n_digits
+    start <- (y * (x - 1) + 1)
+    end <- min((y * (x - 1) + y), length(split_text))
+    if (x == parts) {
+      comb_text <- paste0(split_text[start:end], collapse = "")
+    } else {
+      comb_text <- paste0(paste0(split_text[start:end], collapse = ""), "\n", collapse = "")
+    }
+    if (x == 1) all_text <- comb_text else all_text <- paste0(all_text, comb_text, collapse = "")
+  }
+  return(all_text)
+}
+
+ukb_split_across <- function(ht, n_rows = 50, print_hux = TRUE) {
+  parts <- ceiling((nrow(ht) - 1) / n_rows)
+  output <- vector("list", parts)
+  for (x in 1:parts){
+    y <- n_rows
+    start <- (y * (x - 1) + 1) 
+    end <- min((y * (x - 1) + y + 1), nrow(ht))
+    if (x == 1) {
+      ht_2 <- split_across(ht, after = end)[[1]]
+    } else if (x == parts) {
+      ht_2 <- split_across(ht, after = start)[[2]]
+    } else {
+      ht_2 <- split_across(ht, after = c(start, end))[[2]]
+    }
+    output[[x]] <- ht_2
+    if (print_hux == TRUE) {
+      quick_html(ht_2, file = paste0("hux_table_4", "_", x, "_", race, "_", outcome, ".html"), open = FALSE)
+    }
+  }
+  return(output)
+}
+
+# 15. Subsetting function
 # -----------------------
 # Aim: to subset dataframe based on race or covariates and count number of participants.     
 # Input(s): races ("White". "Black", "Asian") or covariates (e.g. "sbp", "glucose").
@@ -652,7 +697,7 @@ ukb_subset_count <- function(bd_BFZ_df, specific_race, covariate = NULL) {
   else return(bd_BFZ_df %>% filter(race == specific_race) %>% select(all_of(covariate)) %>% na.omit() %>% nrow())
 }
 
-# 15. lambda function
+# 16. lambda function
 # -------------------
 # Aim: compute the genomic inflation factor (lambda).     
 # Input(s): gwas results
@@ -662,7 +707,7 @@ ukb_lambda <- function(data) {
   return(median(chisq) / qchisq(0.5, 1))
 }
 
-# 16. Genes/functional significance function
+# 17. Genes/functional significance function
 # ------------------------------------------
 # Aim: Obtain the genes associated with selected SNPs from the dbSNP database. 
 #      (https://www.ncbi.nlm.nih.gov/snp/)
@@ -734,66 +779,7 @@ ukb_dbsnp <- function(race, outcome, n_digits = 3) {
   write_rds(file,  file = paste0("UKBB_", race, "_", outcome, "_final.rds"))
 }
 
-# 17. Image annotation
-# --------------------
-# Aim: annotate images, specifically manhattan plots.     
-# Input(s): .png image.
-# Output: annotated image.
-ukb_image_annotate <- function(image, text, x = 0, y = 0,  size = 20, color = "black", 
-                               boxcolor = "transparent", degrees = 0, font = 'Times',
-                               style = "italic", bold = FALSE, decoration = NULL, kerning = 0)
-{
-  if (bold == FALSE) weight = 400 else weight = 700 
-  image_annotate(image = image, text = text, size = size, color = color, boxcolor = boxcolor, degrees = degrees, 
-                 location = paste0("+", x, "+", y), font = font, style = style, 
-                 weight = weight, decoration = decoration, kerning = kerning)
-}
-
-# 18. Splitting text and tables
-# -----------------------------
-# Aim: to enable strings fit in huxtables, and tables on pages     
-# Input(s): a string or long table.
-# Output: string with "\n" inserted or split tables.
-ukb_split_text <- function(text, n_digits = 5) {
-  split_text <- strsplit(text, "")[[1]]
-  parts <- ceiling(length(split_text)/n_digits)
-  for (x in 1:parts){
-    y <- n_digits
-    start <- (y * (x - 1) + 1)
-    end <- min((y * (x - 1) + y), length(split_text))
-    if (x == parts) {
-      comb_text <- paste0(split_text[start:end], collapse = "")
-    } else {
-      comb_text <- paste0(paste0(split_text[start:end], collapse = ""), "\n", collapse = "")
-    }
-    if (x == 1) all_text <- comb_text else all_text <- paste0(all_text, comb_text, collapse = "")
-  }
-  return(all_text)
-}
-
-ukb_split_across <- function(ht, n_rows = 50, print_hux = TRUE) {
-  parts <- ceiling((nrow(ht) - 1) / n_rows)
-  output <- vector("list", parts)
-  for (x in 1:parts){
-    y <- n_rows
-    start <- (y * (x - 1) + 1) 
-    end <- min((y * (x - 1) + y + 1), nrow(ht))
-    if (x == 1) {
-      ht_2 <- split_across(ht, after = end)[[1]]
-    } else if (x == parts) {
-      ht_2 <- split_across(ht, after = start)[[2]]
-    } else {
-      ht_2 <- split_across(ht, after = c(start, end))[[2]]
-    }
-    output[[x]] <- ht_2
-    if (print_hux == TRUE) {
-      quick_html(ht_2, file = paste0("hux_table_4", "_", x, "_", race, "_", outcome, ".html"), open = FALSE)
-    }
-  }
-  return(output)
-}
-
-# 19. Getting gene summary
+# 18. Getting gene summary
 # ------------------------
 # Aim: to obtain gene summary from https://www.ncbi.nlm.nih.gov/gene.       
 # Input(s): vectors of races and outcomes. 
@@ -828,7 +814,7 @@ ukb_genes_summary <- function(races, outcomes, p_value = 5e-8) {
                          Summary = rep("NA", length(genes)),
                          Expression = rep("NA", length(genes)),
                          `Annotation info` = rep("NA", length(genes))
-                         )
+  )
   for(k in seq_along(genes)) {
     gene <- genes[[k]]
     gene_summary$Gene[[k]] <- gene
@@ -909,4 +895,19 @@ ukb_genes_summary <- function(races, outcomes, p_value = 5e-8) {
     if(k %% 100 == 0) {Sys.sleep(10)} # Pause for 10 seconds after every 100 requests
   }
   return(gene_summary)
+}
+
+# 19. Image annotation
+# --------------------
+# Aim: annotate images, specifically manhattan plots.     
+# Input(s): .png image.
+# Output: annotated image.
+ukb_image_annotate <- function(image, text, x = 0, y = 0,  size = 20, color = "black", 
+                               boxcolor = "transparent", degrees = 0, font = 'Times',
+                               style = "italic", bold = FALSE, decoration = NULL, kerning = 0)
+{
+  if (bold == FALSE) weight = 400 else weight = 700 
+  image_annotate(image = image, text = text, size = size, color = color, boxcolor = boxcolor, degrees = degrees, 
+                 location = paste0("+", x, "+", y), font = font, style = style, 
+                 weight = weight, decoration = decoration, kerning = kerning)
 }
