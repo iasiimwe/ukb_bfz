@@ -28,7 +28,7 @@ Details on accessing UK Biobank data are available at https://biobank.ctsu.ox.ac
 # Downstream analysis
 Before analysis, ensure to install the following R files using commands similar to:
    ```{r install required packages, include = FALSE}
-   required <- c("data.table", "tidyverse", "lubridate", "mice", "qqman", "gridExtra", "grid", "psych", "rms", "pwr", "huxtable", "rvest", "magick", "rbioapi", "pdftools")
+   required <- c("data.table", "tidyverse", "lubridate", "mice", "qqman", "gridExtra", "grid", "psych", "rms", "pwr", "huxtable", "rvest", "magick", "rbioapi", "pdftools", "webshot2")
    install.packages(required)
    ```
 

@@ -134,7 +134,7 @@ $\underline{Statistical\space analysis}$
   + Two significance thresholds: a genome-wide statistical significance threshold of p < 5 × 10-8, as well as a nominal significance threshold of p < 1 × 10-5. 
   + No further adjustment for multiplicity testing as this analysis is exploratory. 
   + All analyses will be undertaken using SNPTEST Version 2. 
-* Further analysis using the Single Nucleotide Polymorphism (dbSNP) database, the Genotype-Tissue-Expression (GTEx) portal, LocusZoom and Haploview.
+* Further analysis using the Single Nucleotide Polymorphism (dbSNP) database, the Genotype-Tissue-Expression (GTEx) portal, Reactome (pathway analysis), LocusZoom and Haploview.
 
 <br>
 

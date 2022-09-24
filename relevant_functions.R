@@ -911,3 +911,104 @@ ukb_image_annotate <- function(image, text, x = 0, y = 0,  size = 20, color = "b
                  location = paste0("+", x, "+", y), font = font, style = style, 
                  weight = weight, decoration = decoration, kerning = kerning)
 }
+
+# 20. Pathway analysis 
+# --------------------
+# Aim: facilitate pathway analysis using Reactome (version 82, https://reactome.org/).
+#      Requires the "rbioapi" package.
+# Input(s): list of genes associated with the top SNPs, number of required pathways
+#           and whether to download a full pdf report or not.
+# Output: gene summaries based on the Reactome database (ukb_gene_reactome()).
+#         gene-related pathways (ukb_gene_pathways()).
+ukb_gene_reactome <- function(genes) {
+  gene_reactome <- tibble(query_name = rep("NA", length(genes)),
+                          db_id = rep("NA", length(genes)),
+                          gene_name = rep("NA", length(genes)),
+                          gene_symbol = rep("NA", length(genes)), 
+                          gene_description = rep("NA", length(genes)),
+                          gene_summary = rep("NA", length(genes))
+  )
+  for(k in seq_along(genes)) {
+    gene <- genes[[k]]
+    gene_reactome$query_name[k] <- gene
+    
+    not_in_database <- tryCatch(
+      xref_gene <- rba_reactome_xref(gene),
+      error = function(e) e
+    )
+    
+    if(inherits(not_in_database, "error")) next
+    
+    gene_reactome$db_id[k] <- xref_gene$dbId
+    gene_reactome$gene_name[k] <- xref_gene$name[[1]]
+    gene_reactome$gene_symbol[k] <- paste0(xref_gene$geneName[[1]], collapse = ", ")
+    gene_reactome$gene_description[k] <- gsub("recommendedName: ", "", xref_gene$description[[1]])
+    gene_reactome$gene_summary[k] <- gsub("FUNCTION ", "", xref_gene$comment[[1]])
+    
+    message(paste(round(k / length(genes) * 100, 3), "% complete", sep = ""))
+    if(k %% 100 == 0) {Sys.sleep(10)} # Pause for 10 seconds after every 100 requests
+  }
+  return(gene_reactome)
+}
+
+ukb_gene_pathways <- function(genes, top_pathways = 25, download_report = TRUE){
+  # Analyze all genes
+  analyzed_all_genes <- rba_reactome_analysis(input = genes, species = "Homo sapiens")
+  
+  # Download a full pdf report
+  if (download_report == TRUE) {
+    file_name <- "rba_reactome"
+    rba_reactome_analysis_pdf(token = analyzed_all_genes$summary$token,
+                              species = 9606, 
+                              number = top_pathways,
+                              save_to = paste0(file_name, ".pdf")
+    )
+  }
+  
+  # Obtain a summary of the top pathways
+  top_summary <- as_tibble(analyzed_all_genes$pathways[1:top_pathways, ]) %>%
+    mutate(`Pathway name` = name,
+           reactions.found = paste0(reactions.found, "/", reactions.total),
+           entities.found = paste0(entities.found, "/", entities.total)
+           ) %>%
+    select(stId, `Pathway name`, entities.found, entities.ratio, entities.pValue, 
+           entities.fdr, reactions.found, reactions.ratio)
+  
+  # Check if a gene is related to a pathway
+  ukb_gene_paths <- function(genes) {
+    gene_pathways <- tibble(query_name = rep("NA", length(genes)),
+                            pathways = rep("NA", length(genes))
+                            )
+    for(k in seq_along(genes)) {
+      gene <- genes[[k]]
+      gene_pathways$query_name[k] <- gene
+      gene_pathways$pathways[k] <- paste0(rba_reactome_analysis(input = gene, 
+                                                                species = "Homo sapiens"
+      )$pathways[[1]],
+      collapse = ", "
+      )
+      message(paste(round(k / length(genes) * 100, 3), "% complete", sep = ""))
+      if(k %% 100 == 0) {Sys.sleep(10)} # Pause for 10 seconds after every 100 requests
+    }
+    return(gene_pathways)
+  }
+  gene_pathways <- ukb_gene_paths(genes)
+  
+  # Check if a pathway is related to a gene
+  ukb_check_pathway <- function(pathway, gene_pathways){
+    return(gene_pathways$query_name[str_detect(gene_pathways$pathways, pathway)])
+  }
+  
+  # Check genes related to included pathways
+  included_genes <- vector("character", length(top_summary$stId))
+  for(i in seq_along(top_summary$stId)){
+    included_genes[i] <- paste0(ukb_check_pathway(top_summary$stId[[i]], 
+                                                  gene_pathways), collapse = ", ")
+  }
+  
+  # Add the related genes to the summary
+  top_summary <- top_summary %>%
+    mutate(included.genes = included_genes)
+  
+  return(top_summary)
+}
