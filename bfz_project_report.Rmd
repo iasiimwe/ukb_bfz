@@ -33,6 +33,8 @@ library(pwr) # for sample size calculations
 library(huxtable) # for generating tables
 library(rvest) # for webscraping (getting genes and functional significance)
 library(magick) # image annotation
+library(rbioapi) # pathway analysis using Reactome
+library(pdftools) # pdf manipulation
 source("relevant_functions.R")
 ```
 
