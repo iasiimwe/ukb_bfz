@@ -667,24 +667,28 @@ ukb_split_text <- function(text, n_digits = 5) {
   return(all_text)
 }
 
-ukb_split_across <- function(ht, n_rows = 50, print_hux = TRUE) {
+ukb_split_across <- function(ht, n_rows = 50, print_hux = TRUE, n_table = Inf) {
   parts <- ceiling((nrow(ht) - 1) / n_rows)
   output <- vector("list", parts)
-  for (x in 1:parts){
-    y <- n_rows
-    start <- (y * (x - 1) + 1) 
-    end <- min((y * (x - 1) + y + 1), nrow(ht))
-    if (x == 1) {
-      ht_2 <- split_across(ht, after = end)[[1]]
-    } else if (x == parts) {
-      ht_2 <- split_across(ht, after = start)[[2]]
-    } else {
-      ht_2 <- split_across(ht, after = c(start, end))[[2]]
+  iteration <- 0
+  while(iteration < n_table) {
+    for (x in 1:parts) {
+      y <- n_rows
+      start <- (y * (x - 1) + 1) 
+      end <- min((y * (x - 1) + y + 1), nrow(ht))
+      if (x == 1) {
+        ht_2 <- split_across(ht, after = end)[[1]]
+      } else if (x == parts) {
+        ht_2 <- split_across(ht, after = start)[[2]]
+      } else {
+        ht_2 <- split_across(ht, after = c(start, end))[[2]]
+      }
+      output[[x]] <- ht_2
+      if (print_hux == TRUE) {
+        quick_html(ht_2, file = paste0("hux_table_4", "_", x, "_", race, "_", outcome, ".html"), open = FALSE)
+      }
     }
-    output[[x]] <- ht_2
-    if (print_hux == TRUE) {
-      quick_html(ht_2, file = paste0("hux_table_4", "_", x, "_", race, "_", outcome, ".html"), open = FALSE)
-    }
+    iteration <- iteration + 1
   }
   return(output)
 }
@@ -827,9 +831,8 @@ ukb_genes_summary <- function(races, outcomes, p_value = 5e-8) {
       html_nodes(xpath = '//*[@id="padded_content"]') %>%
       html_text() %>%
       gsub("[\n()]|  ", "", .) %>% 
-      str_extract("Gene ID: .*PubMed") %>%
-      str_extract("Gene ID: .*RefSeq transcripts") %>%
-      gsub("Gene ID: |RefSeq transcripts", "", .)
+      str_extract("Gene ID: [^(,|RefSeq)]*") %>%
+      gsub("Gene ID: ", "", .)
     if (is.na(gene_id) == TRUE && str_detect(gene, "LOC") == TRUE) 
       gene_id <- gsub("LOC", "", gene)
     gene_summary$ID[[k]] <- gene_id
@@ -861,19 +864,20 @@ ukb_genes_summary <- function(races, outcomes, p_value = 5e-8) {
     
     # obtain gene type
     gene_summary$Type[[k]] <- gene_info_2 %>% 
-      str_extract("Gene type.*RefSeq ") %>%
-      gsub("Gene type|RefSeq ", "", .)
+      str_extract("Gene type.*RefSeq status") %>%
+      gsub("Gene type|RefSeq status", "", .)
     
     # obtain gene summary
     gene_summary$Summary[[k]] <- gene_info_2 %>% 
-      str_extract("Summary.*\\[provided by") %>%
-      gsub("Summary|\\[provided by", "", .)
+      str_extract("Summary.*\\[(provided by|supplied by)") %>%
+      gsub("Summary|\\[(provided by|supplied by)", "", .)
     
     # obtain gene expression
     gene_expression <- gene_info_2 %>% 
-      str_extract("Expression.*Orthologs") %>%
-      gsub("Expression|Orthologs", "", .)
-    if (TRUE %in% str_detect(gene_expression, "See more")) {
+      str_extract("Expression.*(Orthologs|NEW)") %>%
+      gsub("Expression|Orthologs|NEW", "", .)
+    if (TRUE %in% str_detect(gene_expression, "See more") && 
+        FALSE %in% str_detect(gene_expression, "Low expression") ) {
       gene_expression <- paste0("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=gene&id=",
                                 gene_id,
                                 "&retmode=xml") %>%
