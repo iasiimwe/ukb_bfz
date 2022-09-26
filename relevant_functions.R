@@ -424,8 +424,9 @@ ukb_qq_plots <- function(data, race = NULL) {
   }
 }
 
-ukb_manhattan_plots <- function(data, race, outcome) {
+ukb_manhattan_plots <- function(data, race, outcome, y_max = NULL) {
   y_limit <- max(ceiling(-log10(5e-8)), ceiling(-log10(min(data$P))))
+  if (!is.null(y_max)) y_limit <- y_max
   png(paste("UKBB_", race, "_", outcome, "_manhattan.png", sep = ""), 
       width = 1500, height = 800, res = 120)
   qqman::manhattan(data,
@@ -436,8 +437,9 @@ ukb_manhattan_plots <- function(data, race, outcome) {
   dev.off()
 } 
 
-ukb_qq_gwas_plots <- function(data, race, outcome) {
+ukb_qq_gwas_plots <- function(data, race, outcome, y_max = NULL) {
   y_limit <- max(ceiling(-log10(5e-8)), ceiling(-log10(min(data$P))))
+  if (!is.null(y_max)) y_limit <- y_max
   png(paste("UKBB_", race, "_", outcome, "_qqplot.png", sep = ""), 
       width = 1500, height = 1500, res = 120)
   qqman::qq(data$P, 
