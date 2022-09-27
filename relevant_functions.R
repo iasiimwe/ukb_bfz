@@ -667,9 +667,10 @@ ukb_split_text <- function(text, n_digits = 5) {
   return(all_text)
 }
 
-ukb_split_across <- function(ht, n_rows = 50, print_hux = TRUE, n_table = Inf) {
+ukb_split_across <- function(ht, n_rows = 50, print_hux = TRUE, n_table = NULL) {
   parts <- ceiling((nrow(ht) - 1) / n_rows)
   output <- vector("list", parts)
+  if(is.null(n_table) == TRUE) n_table <- parts
   iteration <- 0
   while(iteration < n_table) {
     for (x in 1:parts) {
