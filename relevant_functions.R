@@ -312,6 +312,13 @@ ukb_label_names <- function(covariate) {
          urate = expression(paste(mu, "mol/L", sep = "")),
          sbp = "mmHg",
          dbp = "mmHg",
+         potassium = "mmol/L",
+         sodium = "mmol/L",
+         sbp_c = "Systolic BP ≥140 mmHg",
+         dbp_c = "Diastolic BP ≥90 mmHg",
+         glucose_c = "Blood glucose ≥11.1 mmol/L",
+         urate_c = expression(paste("Serum urate >360 ", mu, 
+                                    "mol/L (females)\nand >420 ", mu, "mol/L (males)", sep = "")),
          stop("Unknown covariate!"))
 }
 
@@ -328,6 +335,12 @@ ukb_label_names_2 <- function(covariate) {
          urate = "umol/L",
          sbp = "mmHg",
          dbp = "mmHg",
+         potassium = "mmol/L",
+         sodium = "mmol/L",
+         sbp_c = "Systolic BP ≥140 mmHg",
+         dbp_c = "Diastolic BP ≥90 mmHg",
+         glucose_c = "Blood glucose ≥11.1 mmol/L",
+         urate_c = "Serum urate >360 umol/L (females)\nand >420 umol/L (males)",
          stop("Unknown covariate!"))
 }
 
@@ -344,6 +357,12 @@ ukb_title_names <- function(covariate) {
          urate = "Blood urate",
          sbp = "Systolic blood pressure",
          dbp = "Diastolic blood pressure",
+         potassium = "Urine potassium",
+         sodium = "Urine sodium",
+         sbp_c = "High systolic blood pressure",
+         dbp_c = "High diastolic blood pressure",
+         glucose_c = "Hyperglycaemia",
+         urate_c = "Hyperuricaemia",
          stop("Unknown covariate!"))
 }
 
@@ -360,6 +379,12 @@ ukb_reference_levels <- function(covariate) {
          urate = "Reference range: Males, 200 to 420;\nFemales, 140 to 360",
          sbp = "Ideal range: 90 to 120", # from https://www.nhs.uk/common-health-questions/lifestyle/what-is-blood-pressure/
          dbp = "Ideal range: 60 to 80",
+         potassium = NULL,
+         sodium = NULL,
+         sbp_c = NULL,
+         dbp_c = NULL,
+         glucose_c = NULL,
+         urate_c = NULL,
          stop("Unknown covariate!"))
 }
 
@@ -564,7 +589,15 @@ ukb_hux <- function(race_summary_all, covariate_list, covariate_list_2) {
             set_contents(2, 1, covariate_list_2[[x]]) %>%
             set_contents(2, 2, "Mean (SD)\nMedian (IQR; range)\nMissing, n (%)") %>%
             ukb_set_merge_contents(2:4, 3:5)
-        } else {
+        } else if(nrow(variable_data) == 3) {
+          factor_levels <- str_to_title(sapply(str_split(variable_data[[1]], ", "), `[`, 2))
+          hux_var <- hux_header %>%
+            merge_cells(2:4, 1) %>%
+            merge_cells(2:4, 2) %>%
+            set_contents(2, 1, covariate_list_2[[x]]) %>%
+            set_contents(2, 2, paste(factor_levels, collapse = "\n")) %>%
+            ukb_set_merge_contents(2:4, 3:5)
+          } else {
           factor_levels <- str_to_title(sapply(str_split(variable_data[[1]], ", "), `[`, 2))
           hux_var <- hux_header %>%
             merge_cells(2:5, 1) %>%
