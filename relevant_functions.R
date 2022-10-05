@@ -303,6 +303,7 @@ ukb_label_names <- function(covariate) {
   switch(covariate,
          age = "Age (years)",
          sex = "Sex",
+         batch = "Genotyping array",
          bmi = expression(Kg/m^2),
          smoking_status = "Smoking status",
          alcohol_status = "Alcohol status",
@@ -326,6 +327,7 @@ ukb_label_names_2 <- function(covariate) {
   switch(covariate,
          age = "Age (years)",
          sex = "Sex",
+         batch = "Genotyping array",
          bmi = expression(Kg/m^2),
          smoking_status = "Smoking status",
          alcohol_status = "Alcohol status",
@@ -348,6 +350,7 @@ ukb_title_names <- function(covariate) {
   switch(covariate,
          age = "Age",
          sex = "Sex",
+         batch = "Genotyping array",
          bmi = "BMI",
          smoking_status = "Smoking status",
          alcohol_status = "Alcohol status",
@@ -370,6 +373,7 @@ ukb_reference_levels <- function(covariate) {
   switch(covariate,
          age = NULL,
          sex = NULL,
+         batch = NULL,
          bmi = "Ideal range: 18.5 to 24.9",
          smoking_status = NULL,
          alcohol_status = NULL,
@@ -397,7 +401,7 @@ ukb_reference_levels <- function(covariate) {
 # Output: variable-specific box, bar, manhattan or quantile-quantile (qq) plots.
 ukb_box_plots <- function(bd_BFZ, covariate) {
   ggplot(data = bd_BFZ, 
-         mapping = aes(x = race, y = .data[[covariate]], fill = race)
+         mapping = aes(x = thiazide, y = .data[[covariate]], fill = thiazide)
   ) +
     geom_boxplot(colour = "grey20", alpha = 0.7) +
     labs(title = ukb_title_names(covariate),
@@ -416,7 +420,7 @@ ukb_box_plots <- function(bd_BFZ, covariate) {
 }
 
 ukb_bar_plots <- function(bd_BFZ, covariate) {
-  ggplot(data = bd_BFZ, mapping = aes(x = race, 
+  ggplot(data = bd_BFZ, mapping = aes(x = thiazide, 
                                       fill = fct_rev(.data[[covariate]]))) +
     geom_bar(position = "fill", colour = "grey20", alpha = 0.7) +
     labs(title = ukb_title_names(covariate),
@@ -438,21 +442,21 @@ ukb_bar_plots <- function(bd_BFZ, covariate) {
     )
 }
 
-ukb_qq_plots <- function(data, race = NULL) {
+ukb_qq_plots <- function(data, thiazide = NULL) {
   for (i in seq_along(colnames(data))) {
     data_covariate <- data[,i]
     data_covariate <- data_covariate[!is.na(data_covariate)]
     qqnorm(data_covariate, pch = 1, frame = FALSE,
-           main = paste(race, ": ", tolower(ukb_title_names(colnames(data)[i])), sep = "")
+           main = paste(thiazide, ": ", tolower(ukb_title_names(colnames(data)[i])), sep = "")
     )
     qqline(data_covariate, col = "steelblue", lwd = 2)
   }
 }
 
-ukb_manhattan_plots <- function(data, race, outcome, y_max = NULL) {
+ukb_manhattan_plots <- function(data, thiazide, outcome, y_max = NULL) {
   y_limit <- max(ceiling(-log10(5e-8)), ceiling(-log10(min(data$P))))
   if (!is.null(y_max)) y_limit <- y_max
-  png(paste("UKBB_", race, "_", outcome, "_manhattan.png", sep = ""), 
+  png(paste("UKBB_", thiazide, "_", outcome, "_manhattan.png", sep = ""), 
       width = 1500, height = 800, res = 120)
   qqman::manhattan(data,
                    genomewideline = -log10(5e-8),
@@ -462,10 +466,10 @@ ukb_manhattan_plots <- function(data, race, outcome, y_max = NULL) {
   dev.off()
 } 
 
-ukb_qq_gwas_plots <- function(data, race, outcome, y_max = NULL) {
+ukb_qq_gwas_plots <- function(data, thiazide, outcome, y_max = NULL) {
   y_limit <- max(ceiling(-log10(5e-8)), ceiling(-log10(min(data$P))))
   if (!is.null(y_max)) y_limit <- y_max
-  png(paste("UKBB_", race, "_", outcome, "_qqplot.png", sep = ""), 
+  png(paste("UKBB_", thiazide, "_", outcome, "_qqplot.png", sep = ""), 
       width = 1500, height = 1500, res = 120)
   qqman::qq(data$P, 
             col = "blue4",
@@ -513,14 +517,14 @@ ukb_colour_format <- function(x, color) {
 # 13. Huxtable functions
 # ----------------------
 # Aim: to produce project-specific huxtables for inclusion in rmarkdown output documents.
-# Input(s): data frame having summary statistics for the three main race categories (columns are 
+# Input(s): data frame having summary statistics for the three main thiazide categories (columns are 
 #           "Independent variables", "statistic", "White", "Black" and "Asian").
 #         : list of covariates e.g. "age" to include in the table (covariate_list).
 #         : labels e.g. "Age (years)" that correspond to the above covariate list (covariate_list_2)
-#         : the numbers of analyzed participants (analyzed_white, analyzed_black and analyzed_asians)
+#         : the numbers of analyzed participants (based on thiazide status)
 #           are assumed to have been computed earlier. If not, include them in the environment.
-# Output: ukb_hux outputs a huxtable for participant characteristics stratified by the three races 
-#         while ukb_hux_2 shows those included and excluded from a specific analysis (race-stratified).
+# Output: ukb_hux outputs a huxtable for participant characteristics stratified by the three thiazides 
+#         while ukb_hux_2 shows those included and excluded from a specific analysis (thiazide-stratified).
 ukb_set_contents <- function(ht, ht_row, ht_cols, value) {
   i <- 1
   while (i <= length(ht_cols)) {
@@ -547,17 +551,17 @@ ukb_set_merge_contents <- function(ht, ht_rows, ht_cols) {
   return(ht_all)
 }
 
-ukb_hux <- function(race_summary_all, covariate_list, covariate_list_2) {
+ukb_hux <- function(thiazide_summary_all, covariate_list, covariate_list_2) {
   for (x in seq_along(covariate_list)) {
     variable <- covariate_list[[x]]
-    index <- sapply(str_split(race_summary_all[[1]], ", "), `[`, 1) == variable
-    variable_data <- race_summary_all[index, ]
+    index <- sapply(str_split(thiazide_summary_all[[1]], ", "), `[`, 1) == variable
+    variable_data <- thiazide_summary_all[index, ]
     if (nrow(variable_data) > 0) {
-      hux_values <- c("Variables", paste0(c("White", "Black", "Asian"),
+      hux_values <- c("Variables", paste0(c("No thiazide", "Bendroflumethiazide", "Other thiazides"),
                                           " (<i>N</i> = ",
-                                          c(ukb_comma(analyzed_white),
-                                            ukb_comma(analyzed_black),
-                                            ukb_comma(analyzed_asian)
+                                          c(ukb_comma(analyzed_none),
+                                            ukb_comma(analyzed_bfz),
+                                            ukb_comma(analyzed_other)
                                             ),
                                           ")"))
       hux_header <- as_hux(variable_data) %>%
@@ -620,11 +624,12 @@ ukb_hux_2 <- function(data, covariate_list, covariate_list_2, outcome) {
     index <- sapply(str_split(data[[1]], ", "), `[`, 1) == variable
     variable_data <- data[index, ]
     if (nrow(variable_data) > 0) {
-      hux_values <- c("Variables", paste0(c("White", "Black", "Asian"),
+      hux_values <- c("Variables", paste0(c("No thiazide", "Bendroflumethiazide", "Other thiazides"),
                                           " (<i>N</i> = ",
-                                          c(ukb_comma(analyzed_white),
-                                            ukb_comma(analyzed_black),
-                                            ukb_comma(analyzed_asian)),
+                                          c(ukb_comma(analyzed_none),
+                                            ukb_comma(analyzed_bfz),
+                                            ukb_comma(analyzed_other)
+                                          ),
                                           ")"))
       hux_values_2 <- c(paste0(c("Included (<i>N</i> = ",
                                  "Excluded (<i>N</i> = ",
@@ -719,7 +724,7 @@ ukb_split_across <- function(ht, n_rows = 50, print_hux = TRUE, n_table = NULL) 
       }
       output[[x]] <- ht_2
       if (print_hux == TRUE) {
-        quick_html(ht_2, file = paste0("hux_table_4", "_", x, "_", race, "_", outcome, ".html"), open = FALSE)
+        quick_html(ht_2, file = paste0("hux_table_4", "_", x, "_", thiazide, "_", outcome, ".html"), open = FALSE)
       }
     }
     iteration <- iteration + 1
@@ -729,12 +734,12 @@ ukb_split_across <- function(ht, n_rows = 50, print_hux = TRUE, n_table = NULL) 
 
 # 15. Subsetting function
 # -----------------------
-# Aim: to subset dataframe based on race or covariates and count number of participants.     
-# Input(s): races ("White". "Black", "Asian") or covariates (e.g. "sbp", "glucose").
+# Aim: to subset dataframe based on medication or covariates and count number of participants.     
+# Input(s): medication ("bfz", "other", "none") or covariates (e.g. "sbp", "glucose").
 # Output: a count of analyzed participants.
-ukb_subset_count <- function(bd_BFZ_df, specific_race, covariate = NULL) {
-  if (is.null(covariate) == TRUE) return(bd_BFZ_df %>% filter(race == specific_race) %>% nrow()) 
-  else return(bd_BFZ_df %>% filter(race == specific_race) %>% select(all_of(covariate)) %>% na.omit() %>% nrow())
+ukb_subset_count <- function(bd_BFZ_df, medication, covariate = NULL) {
+  if (is.null(covariate) == TRUE) return(bd_BFZ_df %>% filter(thiazide == medication) %>% nrow()) 
+  else return(bd_BFZ_df %>% filter(thiazide == medication) %>% select(all_of(covariate)) %>% na.omit() %>% nrow())
 }
 
 # 16. lambda function
@@ -751,12 +756,12 @@ ukb_lambda <- function(data) {
 # ------------------------------------------
 # Aim: Obtain the genes associated with selected SNPs from the dbSNP database. 
 #      (https://www.ncbi.nlm.nih.gov/snp/)
-# Input(s): race, outcome and n_digits (assumes a .csv file containing these snps)
+# Input(s): thiazide, outcome and n_digits (assumes a .csv file containing these snps)
 #           already exists.
 # Output: data frame (.csv and .rds files) that contains associated genes as well 
 #         as SNP locations (e.g. introns) 
-ukb_dbsnp <- function(race, outcome, n_digits = 3) {
-  file <- fread(paste0("UKBB_", race, "_", outcome, ".csv")) 
+ukb_dbsnp <- function(thiazide, outcome, n_digits = 3) {
+  file <- fread(paste0("UKBB_", thiazide, "_", outcome, ".csv")) 
   N <- unique(file$all_total)
   file <- file %>%
     mutate(Gene = NA,
@@ -815,35 +820,35 @@ ukb_dbsnp <- function(race, outcome, n_digits = 3) {
     message(paste(round(k / nrow(file) * 100, 3), "% complete", sep = ""))
     if (k %% 100 == 0) {Sys.sleep(10)} # Pause for 10 seconds after every 100 requests
   }
-  write.csv(file,  file = paste0("UKBB_", race, "_", outcome, "_final.csv"), row.names = FALSE)
-  write_rds(file,  file = paste0("UKBB_", race, "_", outcome, "_final.rds"))
+  write.csv(file,  file = paste0("UKBB_", thiazide, "_", outcome, "_final.csv"), row.names = FALSE)
+  write_rds(file,  file = paste0("UKBB_", thiazide, "_", outcome, "_final.rds"))
 }
 
 # 18. Getting gene summary
 # ------------------------
 # Aim: to obtain gene summary from https://www.ncbi.nlm.nih.gov/gene.       
-# Input(s): vectors of races and outcomes. 
+# Input(s): vectors of thiazides and outcomes. 
 #           P-value threshold (default 5e-8) for SNPs whose associated genes are 
 #           required.
-#           Assumes at least one race- and outcome-specific file (.csv output of 
+#           Assumes at least one thiazide- and outcome-specific file (.csv output of 
 #           ukb_dbsnp()) is available in the environment.
 # Output: summary e.g. gene of the genes associated with the top SNPs.
-ukb_genes_summary <- function(races, outcomes, p_value = 5e-8) {
-  for(i in seq_along(races)) {
-    race <- races[[i]]
+ukb_genes_summary <- function(thiazides, outcomes, p_value = 5e-8) {
+  for(i in seq_along(thiazides)) {
+    thiazide <- thiazides[[i]]
     for(j in seq_along(outcomes)){
       outcome <- outcomes[[j]]
-      genes_race_outcome <- as_tibble(fread(paste0("UKBB_", race, "_", outcome, "_final.csv"))) %>%
+      genes_thiazide_outcome <- as_tibble(fread(paste0("UKBB_", thiazide, "_", outcome, "_final.csv"))) %>%
         filter (`P value` < p_value) %>%
         select(Gene) %>%
         na.omit() %>%
         unique() 
-      genes_race_outcome <- unique(unlist(str_split(genes_race_outcome$Gene, ", ")))
-      if(j == 1) genes_race <- genes_race_outcome 
-      else genes_race <- unique(bind_rows(genes_race, genes_race_outcome))
+      genes_thiazide_outcome <- unique(unlist(str_split(genes_thiazide_outcome$Gene, ", ")))
+      if(j == 1) genes_thiazide <- genes_thiazide_outcome 
+      else genes_thiazide <- unique(bind_rows(genes_thiazide, genes_thiazide_outcome))
     }
-    if(i == 1) genes <- genes_race 
-    else genes <- unique(bind_rows(genes, genes_race))
+    if(i == 1) genes <- genes_thiazide 
+    else genes <- unique(bind_rows(genes, genes_thiazide))
   }
   gene_summary <- tibble(Gene = rep("NA", length(genes)),
                          ID = rep("NA", length(genes)),
