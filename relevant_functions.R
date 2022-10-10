@@ -460,7 +460,7 @@ ukb_manhattan_plots <- function(data, thiazide, outcome, y_max = NULL) {
       width = 1500, height = 800, res = 120)
   qqman::manhattan(data,
                    genomewideline = -log10(5e-8),
-                   col = c("blue4", "orange3"),
+                   col = c("blue", "deepskyblue3"),
                    ylim = c(0, y_limit)
                    )
   dev.off()
@@ -472,7 +472,7 @@ ukb_qq_gwas_plots <- function(data, thiazide, outcome, y_max = NULL) {
   png(paste("UKBB_", thiazide, "_", outcome, "_qqplot.png", sep = ""), 
       width = 1500, height = 1500, res = 120)
   qqman::qq(data$P, 
-            col = "blue4",
+            col = "blue",
             ylim = c(0, y_limit)
             )
   dev.off()
