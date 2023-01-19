@@ -1,7 +1,6 @@
-# ukb_bfz
-Genome-wide SNP-thiazide interactions for thiazide-associated electrolyte disorders in the UK Biobank. 
+## Genome-wide SNP-thiazide interactions for thiazide-associated electrolyte disorders in the UK Biobank. 
 
-# UK Biobank data
+### UK Biobank data
 Details on accessing UK Biobank data are available at https://biobank.ctsu.ox.ac.uk/~bbdatan/Accessing_UKB_data_v2.3.pdf. Validating, decrypting and converting the downloaded UK Biobank file needs to be done using command line instructions in a command prompt in Windows or a terminal window in Linux. The main steps include:
 1. Download the helper programs/file handlers (e.g. ukbmd5, ukbconv, ukbunpack) and the miscellaneous utility 'encoding.ukb' from https://biobank.ndph.ox.ac.uk/ukb/download.cgi and change the file handler permissions (e.g. using **chmod 755**).
 2. Download the encrypted dataset (e.g. ukb12345.enc) through the UK Biobank Access Management System.
@@ -26,7 +25,7 @@ Details on accessing UK Biobank data are available at https://biobank.ctsu.ox.ac
     - A dictionary (Data_Dictionary_Showcase.csv) to identify the Field IDs (downloaded from https://biobank.ctsu.ox.ac.uk/~bbdatan/Data_Dictionary_Showcase.csv).
     - A data codings file (available at: https://biobank.ctsu.ox.ac.uk/~bbdatan/Codings.csv).
 
-# Downstream analysis
+### Downstream analysis
 Before analysis, ensure to install the following R files using commands similar to:
    ```{r install required packages, include = FALSE}
    required <- c("data.table", "tidyverse", "qqman", "gridExtra", "grid", "rms", "pwr")
