@@ -16,6 +16,8 @@ Details on accessing UK Biobank data are available at https://biobank.ctsu.ox.ac
        * Co-primary outcomes: Blood glucose (**Data-Field 30740**), Serum urate (**Data-Field 30880**), Urine potassiun (**Data-Field 30520**) and Urine sodium (**Data-Field 30530**).
        * Genetic covariates: the first ten principal components of genetic ancestry (**Data-Field 22009**).
        * Non-genetic covariates: Age at baseline (years, <b>Data-Field 21003</b>) and Sex (male vs female, **Data-Field 31**).
+       * Self-reported Non-cancer illness (**Data-Field 20002**) and Treatment/medication code (**Data-Field 20003**) to identify the study population.
+       * Other fields used e.g. during per-participant quality control included: **53** (date), **22001** (genetic sex), **22006** (genetic ethnic grouping), **22019** (sex chromosome aneuploidy), and **22027** (outliers for heterozygosity or missing rate).
 6. Details of downloading genetics data are included in section 4 of https://biobank.ctsu.ox.ac.uk/~bbdatan/Accessing_UKB_data_v2.3.pdf. In addition to the bulk genotyped and/or imputed genetic data, the following should be downloaded.
     - .fam files, obtained using **./gfetch 22418 -c1 -m -ak67890r12345.key** for genotype data (**Data-Field 22418**) or **./gfetch 22828 -c1 -m -k67890r12345.key** for imputed data (**Data-Field 22828**). 
     - Relatedness dataset, obtained using **./gfetch rel -ak67890r12345.key**.
