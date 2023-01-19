@@ -47,10 +47,66 @@ bd_HTN <- select(bd, contains(c("f.eid", "f.53.", "f.20002."))) %>%
 nrow(bd_HTN) # 133271 participants with self-reported hypertension at baseline
 
 
-# Exclude patients taking specific drugs (done for sensitivity analysis)
-# ----------------------------------------------------------------------
+# Exclude patients taking specific drugs (only done for sensitivity analysis)
+# ---------------------------------------------------------------------------
+# Did not include conditions such as gout or diabetes since not all patients will be on medications
 
+# Get medications (required field is 20003)
+bd_meds <- select(bd, contains(c("f.eid", "f.53.", "f.20003."))) %>%
+  filter(f.eid %in% bd_HTN$f.eid) %>%
+  ukb_reshape_long(dict) %>%
+  rename(Date = `Date of attending assessment centre`,
+         Coding = `Treatment/medication code`) %>%
+  filter(I == ".0.")
+dict_meds <- as_tibble(fread("medication_GWAS_dict.csv")) # Derived from PMID: 31015401
+bd_meds <- left_join(bd_meds, dict_meds) %>%
+  select(-Date, -Coding) # Combine bd_meds with dict_meds and removing columns that are no longer needed
 
+# Antidiabetics - relevant ATC code is (A10) 'Antidiabetes preparations'
+ATC_code <- "(^|\\|)A10"
+bd_meds_diabetes <- bd_meds %>%
+  filter(str_detect(.$Medication_ATC_code, ATC_code))
+length(unique(bd_meds_diabetes$f.eid)) # 12340 participants
+  
+# Anti-gout - relevant ATC code is (M04A) 'Antigout preparations' but colchicine has no effect on uric acid metabolism.
+# Consider only allopurinol or sulfinpyrazone (PMID: 35128470)
+# Allopurinol inhibits uric acid production, sulfinpyrazone increases uric acid excretion
+bd_meds <- select(bd, contains(c("f.eid", "f.53.", "f.20003."))) %>%
+  filter(f.eid %in% bd_HTN$f.eid) %>%
+  ukb_reshape_long(dict)
+dict_meds <- as_tibble(fread("Codings.csv")) # codings for medications == 4
+dict_meds <- dict_meds %>%
+  subset(Coding == 4) %>%
+  select(Value, Meaning)
+colnames(dict_meds) <- c("Treatment/medication code","Treatment/medication")
+dict_meds$`Treatment/medication code` <-
+  parse_integer(dict_meds$`Treatment/medication code`)
+bd_meds <- bd_meds %>%
+  left_join(dict_meds) %>%
+  select(!`Treatment/medication code`) %>%
+  filter(I == ".0.") 
+drug <- "allopurinol|sulfinpyrazone"
+index <- str_detect(tolower(bd_meds$`Treatment/medication`), drug)
+index[is.na(index)] <- FALSE
+bd_meds_gout <- bd_meds[index, ] %>%
+  select(f.eid) %>%
+  unique()
+nrow(bd_meds_gout) # 3537 patients taking these (3517 allopurinol, 20 sulfinpyrazone)
+
+# Potassium supplements
+drug <- "\\+potassium|potassium product|potassium citrate 3g|potassium bicarbonate\\+citric acid|potassium aminobenzoate|movicol oral powder|sando-k effervescent tablet|cymalon cranberry 1.5g/|slow-k 600mg m|effercitrate soluble tablet"
+index <- str_detect(tolower(bd_meds$`Treatment/medication`), drug)
+index[is.na(index)] <- FALSE
+bd_meds_potassium <- bd_meds[index, ] %>%
+  select(f.eid) %>%
+  unique()
+nrow(bd_meds_potassium) # 914 patients taking potassium supplements
+
+# Patients not taking any of the above drugs
+with_excluded_drugs <- unique(c(bd_meds_diabetes$f.eid, bd_meds_gout$f.eid, bd_meds_potassium$f.eid))
+bd_HTN <- bd_HTN %>%
+  filter(!f.eid %in% with_excluded_drugs) 
+nrow(bd_HTN) # 117133 patients not taking drugs affecting any of the outcomes
 
 
 # Participant quality control checks (informed consent, with genetic data etc)
