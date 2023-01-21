@@ -382,20 +382,7 @@ ukb_qq_gwas_plots <- function(data, cohort, outcome, y_max = NULL) {
 }
 
 
-# 8. Recode to SNPTest format
-# ----------------------------
-# Aim: code categorical variables to either "1" or "2"    
-# Input(s): factors with two levels.
-# Output: vector with 1s and 2s.
-ukb_recode_snptest <- function(x) {
-  for (y in names(x)) {
-    x[y] <- ifelse (x[[y]] == 0, 1, 2)
-  }
-  return(x)
-}
-
-
-# 9. lambda function
+# 8. lambda function
 # -------------------
 # Aim: compute the genomic inflation factor (lambda).     
 # Input(s): gwas results

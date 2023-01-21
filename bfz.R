@@ -608,17 +608,10 @@ for (i in seq_along(cohorts)){
   
   bd_covar <- cohorts[[i]] %>%
     select(age:C10) %>%
-    model.matrix(~ age + sex + thiazide + C1 + C2 + C3 + C4 + C5 + C6 + C7 + C8 + C9 + C10, .) %>%
-    as_tibble() %>%
-    select(-`(Intercept)`) %>%
     mutate(FID = cohorts[[i]]$f.eid,
            IID = cohorts[[i]]$f.eid) %>%
     relocate(age:C10, .after = last_col()) %>%
     filter(FID %in% bd_pheno$FID)
-  categorical <- c("sexMale", "thiazideYes")
-  bd_covar[categorical] <- bd_covar %>% 
-    select(all_of(categorical)) %>% 
-    ukb_recode_snptest() 
   write.table(bd_covar, file = paste("covar_BFZ_", file_names[[i]], ".txt", sep = ""), 
               sep = " ", row.names = FALSE, quote = FALSE, na = "NA")
 }
@@ -640,7 +633,7 @@ for (i in seq_along(cohorts)){
 #   --glm interaction \
 #   --keep keep_BFZ_${cohort}.txt \
 #   --covar covar_BFZ_${cohort}.txt \
-#   --covar-name age,sexMale,thiazideYes,C1,C2,C3,C4,C5,C6,C7,C8,C9,C10 
+#   --covar-name age,sex,thiazide,C1,C2,C3,C4,C5,C6,C7,C8,C9,C10 
 #   --parameters 1-14,17 \
 #   --out ${cohort}_chr_${i} \
 #   --geno 0.05 \
