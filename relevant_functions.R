@@ -45,38 +45,7 @@ ukb_reshape_long <- function(data, dict) {
 }
 
 
-# 2. Minimum sample size function
-# -------------------------------
-# Aim: Compute minimum sample-size (continuous outcomes), requires the 'pwr' package.      
-# Input(s): required effect size (obtained from literature and/or expert opinion).
-#         : known/extrapolated outcome standard deviation for the study population.
-#         : statistical significance (p-value) threshold (default for GWAS is 5e-8).
-#         : required power (default is 80%).
-#         : assumed minor allele frequency (MAF, default is 20%).
-#         : n_times, number of times the minimum sample size is assumed to decrease with MAF = 50%.
-# Output: colour-formatted rmarkdown text.
-ukb_min_sample <- function(effect, std_ev, p = 5e-8, power = 0.8, maf = 0.2, n_times = 2) {
-  equal_sizes <- ceiling((pwr.t.test(d = effect / std_ev, 
-                                     sig.level = p, 
-                                     alternative = "two.sided", 
-                                     power = power)$n)
-                         * 2) # sample size assuming equally-sized groups (i.e. MAF = 50%)
-  unequal_sizes <- equal_sizes * n_times # assuming having unequally-sized group will increase sample size by at most n_times
-  ukb_power_diff <- function(sample_size) {
-    current_power <- (pwr.t2n.test(n1 = maf * sample_size, 
-                                   n2 = (1 - maf) * sample_size, 
-                                   d = effect / std_ev, 
-                                   sig.level = p, 
-                                   alternative = "two.sided"))$power
-    abs(current_power - power)
-  }
-  min_sample_size <- ceiling(optimize(ukb_power_diff, c(equal_sizes:unequal_sizes))$minimum)
-  if (min_sample_size < floor(unequal_sizes)) return(min_sample_size) 
-  else return("Assumed maximum sample size likely low, increase n_times by 1")
-}
-
-
-# 3. Relatedness function
+# 2. Relatedness function
 # -----------------------
 # Aim: from highly related individuals (Kinship > 0.0884, greater than 3rd-degree relatedness), 
 #      to exclude those with lower call rates/higher missingness levels.
@@ -112,148 +81,33 @@ ukb_related <- function(related.df, missingness.df, bd_BFZ.df) {
 }
 
 
-# 4. Statistics summary function
-# ------------------------------
-# Aim: to obtain summary statistics.      
-# Input(s): numeric vectors (for mean and median) or factors (for percentages).
-#         : functions, namely "mean", "median" and "percentage".
-#         : number of required decimal places (default is 1).
-# Output: formatted means (with sds), medians (with IQRs and ranges), and percentages. If missing 
-#         data exists, the percentage of missing data is also outputted. 
-ukb_statistics <- function(dataQ, f, round_digits = 1) {
-  if (f == "mean") {
-    statistic <- paste(format(round(mean(dataQ, na.rm = TRUE), round_digits), nsmall = round_digits), 
-                       " (", 
-                       format(round(sd(dataQ, na.rm = TRUE), round_digits), nsmall = round_digits), 
-                       ")", 
-                       sep = ""
-    )
-    return(statistic)
-  } else if (f == "median") {
-    quantiles <- format(round(quantile(dataQ, na.rm = TRUE), digits = round_digits), 
-                        nsmall = round_digits)
-    statistic <- paste(quantiles[[3]],
-                       " (",
-                       quantiles[[2]],
-                       "–",
-                       quantiles[[4]],
-                       "; ",
-                       quantiles[[1]],
-                       "–",
-                       quantiles[[5]],
-                       ")",
-                       sep = ""
-    )
-    if (TRUE %in% is.na(dataQ)) {
-      percent_na <- paste(sum(is.na(dataQ)),
-                          " (",
-                          format(round(sum(is.na(dataQ)) * 100 / length(dataQ), round_digits), 
-                                 nsmall = round_digits),
-                          "%)",
-                          sep = ""
-      )
-      statistic <- c(statistic, percent_na)
-    }
-    return(statistic)
-  } else if (f == "percentage") {
-    out <- vector("double", length(levels(dataQ)))
-    for (i in seq_along(levels(dataQ))) {
-      out[[i]] <- paste(table(dataQ)[i],
-                        " (",
-                        format(round(table(dataQ)[i] * 100 / length(dataQ), 
-                                     round_digits), 
-                               nsmall = round_digits),
-                        "%)",
-                        sep = ""
-      )
-    }
-    if (TRUE %in% is.na(dataQ)) {
-      percent_na <- paste(sum(is.na(dataQ)), 
-                          " (",
-                          format(round(sum(is.na(dataQ)) * 100 / length(dataQ), 
-                                       round_digits), 
-                                 nsmall = round_digits),
-                          "%)", 
-                          sep = ""
-      )
-      out <- c(out, percent_na)
-    }
-    return(out)
-  } else {
-    return("function not specified")
-  }
-}
-
-
-# 5. Descriptive summary function
-# -------------------------------
-# Aim: Produce summary statistics for a dataset.      
-# Input(s): dataset with numerical vectors and/or factors.
-#         : number of requires decimal places (default 1).
-# Output: dataset with three columns (variable, statistic, and value).
-ukb_summary <- function(data, round_digits = 1) {
-  names_list <- colnames(data)
-  output <- vector("list", length(names_list))
-  for (i in seq_along(names_list)) {
-    name_list <- names_list[[i]]
-    dataQ <- data[[name_list]] # or: data %>% select(name_list)
-    if (is.numeric(dataQ) == TRUE) {
-      values1 <- ukb_statistics(dataQ, f = "mean", round_digits)
-      values2 <- ukb_statistics(dataQ, f = "median", round_digits)
-      name_levels <- rep(name_list, 2)
-      statistic <- c("mean (sd)", "median (IQR; range)")
-      if (TRUE %in% is.na(dataQ)) {
-        name_levels <- c(name_levels, paste(name_list, "missing", sep = ", "))
-        statistic <- c(statistic, "n (%)")
-      }
-      variable_summary <- tibble(variable = name_levels,
-                                 statistic = statistic,
-                                 value = c(values1, values2)
-      )
-    } else if (is.factor(dataQ) == TRUE) {
-      name_levels <- levels(dataQ)
-      if (TRUE %in% is.na(dataQ)) name_levels <- c(name_levels, "missing")
-      values <- ukb_statistics(dataQ, f = "percentage", round_digits)
-      variable_summary <- tibble(variable = paste(name_list, 
-                                                  name_levels, sep = ", "),
-                                 statistic = rep("n (%)", length(name_levels)),
-                                 value = values
-      )
-    } else {
-      variable_summary <- tibble(variable = name_list,
-                                 statistic = "na (neither numeric nor factor)",
-                                 value = "na (neither numeric nor factor)"
-      )
-    }
-    output[[i]] <- variable_summary
-  }
-  
-  for (i in seq_along(output)) {
-    if (i == 1) {
-      out <- output[[i]]
-    } else {
-      out <- rbind(out, output[[i]])
-    }
-  }
-  return(out)
-}
-
-
-# 6. Label and title names functions
+# 3. Label and title names functions
 # ----------------------------------
 # Aim: Provide labels and titles for plotting graphs, limited to the variables used during analysis, 
 #      but can be accordingly expanded.
 # Input(s): the variable being plotted.
 # Output: label to use in a plot.
+
 ukb_label_names <- function(covariate) {
   switch(covariate,
          age = "Age (years)",
          sex = "Sex",
+         array = "Genotyping array",
+         bmi = expression(Kg/m^2),
+         smoking = "Smoking status",
+         alcohol = "Alcohol status",
+         townsend = "Townsend index score",
+         pa = "Types of physical activity in last 4 weeks",
          glucose = "mmol/L",
          urate = expression(paste(mu, "mol/L", sep = "")),
          potassium = "mmol/L",
          sodium = "mmol/L",
-         thiazide = "Thiazide status",
+         thiazide = "Thiazides",
+         losartan = "Losartan",
+         raas = "Non-losartan RAASi",
+         bb = "Beta-blockers",
+         ccb = "Calcium channel blockers",
+         allo = "Allopurinol",
          stop("Unknown covariate!"))
 }
 
@@ -261,11 +115,22 @@ ukb_label_names_2 <- function(covariate) {
   switch(covariate,
          age = "Age (years)",
          sex = "Sex",
+         array = "Genotyping array",
+         bmi = expression(Kg/m^2),
+         smoking = "Smoking status",
+         alcohol = "Alcohol status",
+         townsend = "Townsend index score",
+         pa = "Types of physical activity in last 4 weeks",
          glucose = "mmol/L",
          urate = "umol/L",
          potassium = "mmol/L",
          sodium = "mmol/L",
-         thiazide = "Thiazide status",
+         thiazide = "Thiazides",
+         losartan = "Losartan",
+         raas = "Non-losartan RAASi",
+         bb = "Beta-blockers",
+         ccb = "Calcium channel blockers",
+         allo = "Allopurinol",
          stop("Unknown covariate!"))
 }
 
@@ -273,29 +138,27 @@ ukb_title_names <- function(covariate) {
   switch(covariate,
          age = "Age",
          sex = "Sex",
+         array = "Genotyping array",
+         bmi = "BMI",
+         smoking = "Smoking status",
+         alcohol = "Alcohol status",
+         townsend = "Townsend index",
+         pa = "Physical activity",
          glucose = "Blood glucose",
-         urate = "Serum urate",
+         urate = "Blood urate",
          potassium = "Urine potassium",
          sodium = "Urine sodium",
-         thiazide = "Thiazide",
-         cohort = "Cohort",
-         stop("Unknown covariate!"))
-}
-
-ukb_reference_levels <- function(covariate) {
-  switch(covariate,
-         age = NULL,
-         sex = NULL,
-         glucose = "Normal fasting range: 3.9 to 5.6",
-         urate = "Reference range: Males, 200 to 420;\nFemales, 140 to 360",
-         potassium = NULL,
-         sodium = NULL,
-         thiazide = NULL,
+         thiazide = "Thiazides",
+         losartan = "Losartan",
+         raas = "Non-losartan RAASi",
+         bb = "Beta-blockers",
+         ccb = "Calcium channel blockers",
+         allo = "Allopurinol",
          stop("Unknown covariate!"))
 }
 
 
-# 7. Plotting functions
+# 4. Plotting functions
 # ---------------------
 # Aim: Functions to make project-specific plotting easier and consistent.      
 # Input(s): a dataset containing individuals with the desired phenotype e.g. bd_BFZ.df contains 
@@ -309,8 +172,7 @@ ukb_box_plots <- function(bd_BFZ, covariate, grouping = "thiazide") {
     geom_boxplot(colour = "grey20", alpha = 0.7) +
     labs(title = ukb_title_names(covariate),
          x = NULL,
-         y = ukb_label_names(covariate),
-         caption = ukb_reference_levels(covariate)
+         y = ukb_label_names(covariate)
     ) +
     theme(axis.text.x = element_text(colour = "black"), 
           axis.text.y = element_text(colour = "black"), 
@@ -345,34 +207,27 @@ ukb_bar_plots <- function(bd_BFZ, covariate, grouping = "thiazide") {
     )
 }
 
-ukb_qq_plots <- function(data, cohort = NULL) {
-  for (i in seq_along(colnames(data))) {
-    data_covariate <- data[,i]
-    data_covariate <- data_covariate[!is.na(data_covariate)]
-    qqnorm(data_covariate, pch = 1, frame = FALSE,
-           main = paste(cohort, ": ", tolower(ukb_title_names(colnames(data)[i])), sep = "")
-    )
-    qqline(data_covariate, col = "steelblue", lwd = 2)
-  }
-}
-
-ukb_manhattan_plots <- function(data, cohort, outcome, y_max = NULL) {
+ukb_manhattan_plots <- function(data, cohort, outcome, type, y_max = NULL,
+                                genomewideP = 5e-8, suggestive = -log10(1e-05), 
+                                snps_to_highlight = NUL) {
   y_limit <- max(ceiling(-log10(5e-8)), ceiling(-log10(min(data$P))))
   if (!is.null(y_max)) y_limit <- y_max
-  png(paste("UKBB_", cohort, "_", outcome, "_manhattan.png", sep = ""), 
+  png(paste0("UKBB_", cohort, "_", outcome, "_manhattan_", type, ".png"), 
       width = 1500, height = 800, res = 120)
   qqman::manhattan(data,
-                   genomewideline = -log10(5e-8),
+                   genomewideline = -log10(genomewideP),
                    col = c("blue", "deepskyblue3"),
-                   ylim = c(0, y_limit)
+                   ylim = c(0, y_limit),
+                   suggestiveline = suggestive, 
+                   highlight = snps_to_highlight
                    )
   dev.off()
 } 
 
-ukb_qq_gwas_plots <- function(data, cohort, outcome, y_max = NULL) {
+ukb_qq_gwas_plots <- function(data, cohort, outcome, type, y_max = NULL) {
   y_limit <- max(ceiling(-log10(5e-8)), ceiling(-log10(min(data$P))))
   if (!is.null(y_max)) y_limit <- y_max
-  png(paste("UKBB_", cohort, "_", outcome, "_qqplot.png", sep = ""), 
+  png(paste0("UKBB_", cohort, "_", outcome, "_qqplot_", type, ".png"), 
       width = 1500, height = 1500, res = 120)
   qqman::qq(data$P, 
             col = "blue",
@@ -382,7 +237,7 @@ ukb_qq_gwas_plots <- function(data, cohort, outcome, y_max = NULL) {
 }
 
 
-# 8. lambda function
+# 5. lambda function
 # -------------------
 # Aim: compute the genomic inflation factor (lambda).     
 # Input(s): gwas results
@@ -390,4 +245,141 @@ ukb_qq_gwas_plots <- function(data, cohort, outcome, y_max = NULL) {
 ukb_lambda <- function(data) {
   chisq = qchisq(data$P, 1, lower.tail = FALSE)
   return(median(chisq) / qchisq(0.5, 1))
+}
+
+
+# 6. Pre-adjusting phenotype
+# --------------------------
+# Aim: pre-adjust the phenotype based on age, sex and genetic principal components
+# Input(s): dataset, outcome, sd (for removing outliers)
+# Output: pre-adjusted phenotype (residuals)
+
+# Primary analysis
+ukb_model_outcome <- function(data, outcome, sd_number = 5) {
+  dataQ <- data %>%
+    select(-glucose, -urate, -potassium, -sodium)
+  dataQ$y <- data[[outcome]]
+  model_res <- paste("C", 1:10, sep = "", collapse = " + ") %>%
+    paste0("y ~ age +", .) %>%
+    as.formula %>%
+    lm(., data = dataQ) %>%
+    residuals()
+  max_res <- mean(model_res) + 5 * sd(model_res)
+  min_res <- mean(model_res) - 5 * sd(model_res)
+  
+  dataQ <- left_join(dataQ[,c("f.eid", "sex")], data.frame(f.eid = dataQ$f.eid[complete.cases(dataQ)], residuals = model_res))
+  # filter out values less than 5 times or more than 5 times the sd
+  dataQ_sd <- dataQ %>%
+    filter(residuals >= min_res & residuals <= max_res)
+  # standardized to z scores with  mean 0 and variance 1 in each gender group
+  dataQ_sd$std_res <- NA
+  dataQ_sd$std_res[dataQ_sd$sex == "Male"] <- scale(dataQ_sd$residuals[dataQ_sd$sex == "Male"])
+  dataQ_sd$std_res[dataQ_sd$sex == "Female"] <- scale(dataQ_sd$residuals[dataQ_sd$sex == "Female"])
+  
+  dataQ <- dataQ %>%
+    select(f.eid) %>%
+    left_join(., dataQ_sd)
+  
+  return(dataQ$std_res)
+}
+
+# Sebsitivity analysis
+ukb_model_outcome2 <- function(data, outcome, sd_number = 5) {
+  dataQ <- data %>%
+    select(-glucose, -urate, -potassium, -sodium)
+  dataQ$y <- data[[outcome]]
+  model_res <- paste("C", 1:40, sep = "", collapse = " + ") %>%
+    paste0("y ~ age + bmi + smoking + alcohol + pa + townsend + array + losartan + raas + bb + ccb + allo +", .) %>%
+    as.formula %>%
+    lm(., data = dataQ) %>%
+    residuals()
+  max_res <- mean(model_res) + 5 * sd(model_res)
+  min_res <- mean(model_res) - 5 * sd(model_res)
+  
+  dataQ <- left_join(dataQ[,c("f.eid", "sex")], data.frame(f.eid = dataQ$f.eid[complete.cases(dataQ)], residuals = model_res))
+  # filter out values less than 5 times or more than 5 times the sd
+  dataQ_sd <- dataQ %>%
+    filter(residuals >= min_res & residuals <= max_res)
+  # standardized to z scores with  mean 0 and variance 1 in each gender group
+  dataQ_sd$std_res <- NA
+  dataQ_sd$std_res[dataQ_sd$sex == "Male"] <- scale(dataQ_sd$residuals[dataQ_sd$sex == "Male"])
+  dataQ_sd$std_res[dataQ_sd$sex == "Female"] <- scale(dataQ_sd$residuals[dataQ_sd$sex == "Female"])
+  
+  dataQ <- dataQ %>%
+    select(f.eid) %>%
+    left_join(., dataQ_sd)
+  
+  return(dataQ$std_res)
+}
+
+
+# 7. Recode "Prefer not to answer" function
+# ------------------------------------------
+# Aim: change "Prefer not to answer" to NA.      
+# Input(s): factor with or without the level "Prefer not to answer".
+# Output: factor with "Prefer not to answer" entries changed to NA.
+ukb_recode_factor_na <- function(x) {
+  for (i in seq_along(x)) {
+    x[[i]] <- x[[i]] %>% recode_factor("Prefer not to answer" = NA_character_)
+  }
+  return(x)
+}
+
+
+# 8. Image annotation
+# --------------------
+# Aim: annotate images, specifically manhattan plots.     
+# Input(s): .png image.
+# Output: annotated image.
+ukb_image_annotate <- function(image, text, x = 0, y = 0,  size = 20, color = "black", 
+                               boxcolor = "transparent", degrees = 0, font = 'Times',
+                               style = "italic", bold = FALSE, decoration = NULL, kerning = 0)
+{
+  if (bold == FALSE) weight = 400 else weight = 700 
+  image_annotate(image = image, text = text, size = size, color = color, boxcolor = boxcolor, degrees = degrees, 
+                 location = paste0("+", x, "+", y), font = font, style = style, 
+                 weight = weight, decoration = decoration, kerning = kerning)
+}
+
+
+# 9. Genes/functional significance function
+# ------------------------------------------
+# Aim: Obtain the genes associated with selected SNPs from the dbSNP database. 
+#      (https://www.ncbi.nlm.nih.gov/snp/)
+# Input(s): cohort, outcome and n_digits (assumes a .csv file containing these snps)
+#           already exists.
+# Output: data frame (.csv and .rds files) that contains associated genes as well 
+#         as SNP locations (e.g. introns) 
+ukb_dbsnp <- function(snps_list, n_digits = 3) {
+  file <- tibble(SNP = rep(NA, length(snps_list)),
+                 Gene = rep(NA, length(snps_list)),
+                 `Functional consequence` = rep(NA, length(snps_list)),
+                 )
+  for (k in seq_along(snps_list)) {
+    snp <- snps_list[[k]]
+    file$SNP[k] <- snp
+    if (str_detect(snp, ":") == FALSE) {
+      SNP_info <- paste0("https://www.ncbi.nlm.nih.gov/snp/?term=", snp) %>%
+        read_html() %>%
+        html_nodes("dl.snpsum_dl_left_align") %>%
+        html_text() %>%
+        gsub("[\n() ]", "", .)
+      file$Gene[k] <- SNP_info[1] %>% 
+        str_extract("Gene:.*Varview") %>%
+        gsub("Gene:|Varview", "", .) %>%
+        gsub(",", ", ", .)
+      file$`Functional consequence`[k] <- SNP_info[1] %>% 
+        str_extract("FunctionalConsequence:.*Validated") %>%
+        gsub("FunctionalConsequence:|Validated", "", .) %>%
+        gsub(",", ", ", .) %>%
+        gsub("_|:", " ", .) %>%
+        gsub("non coding", "non-coding", .) %>%
+        gsub("Clinicalsignificance", "; Clinical significance:", .) %>%
+        gsub(" transcript| variant", "", .) %>%
+        gsub("prime", "-prime", .)
+    }
+    message(paste(round(k / length(snps_list) * 100, 3), "% complete", sep = ""))
+    if (k %% 100 == 0) {Sys.sleep(10)} # Pause for 10 seconds after every 100 requests
+  }
+  return(file)
 }
