@@ -21,7 +21,7 @@ Details on accessing UK Biobank data are available at https://biobank.ctsu.ox.ac
     - A data codings file (available at: https://biobank.ctsu.ox.ac.uk/~bbdatan/Codings.csv).
 
 ### Downstream analysis
-Before analysis, ensure to install the following R files using commands similar to:
+Before analysis, ensure to install the following R packages using commands similar to:
    ```{r install required packages, include = FALSE}
    required <- c("data.table", "tidyverse", "qqman", "gridExtra", "grid", "rms", "genpwr", "mice", "magick", "rvest", "bigsnpr")
    if(!require(required)) install.packages(required)
