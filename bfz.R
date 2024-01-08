@@ -1046,6 +1046,7 @@ for (i in seq_along(outcomes)) {
 img_pooled %>%
   image_write(path = "Fig_S5.png", format = "png")
 
+
 # Figure S6 (GWAS for urine potassium and urine sodium, Manhattan plots)
 outcomes <- c("glucose", "urate", "potassium", "sodium")
 outcome_names <- c("Blood glucose", "Serum urate", "Urine potassium", "Urine sodium")
@@ -1092,7 +1093,163 @@ for (i in seq_along(outcomes)) {
 img_pooled %>%
   image_write(path = "Fig_S7.png", format = "png")
 
-# Figure S8 (Sensitivity analysis for serum urate, Manhattan plots)
+
+## Figures S8 and S9 (Biomarker concentrations classified according to genotype and Bendroflumethiazide status; serum urate used as example
+# # Get data for the two top SNPs (on Lunix)
+# plink2 --bgen ukb_imp_chr4_v3.bgen ref-first --sample ukbb.sample --keep keep_BFZ_dis.txt --hard-call-threshold 0.1 --snps rs938564 --recode vcf --out rs938564_snp
+# plink2 --bgen ukb_imp_chr6_v3.bgen ref-first --sample ukbb.sample --keep keep_BFZ_dis.txt --hard-call-threshold 0.1 --snp rs35612982 --recode vcf --out rs35612982_snp
+# # Convert to plink files
+# /pub59/iasiimwe/plink1.9/plink --vcf rs938564_snp.vcf --recode tab --out rs938564_snp
+# /pub59/iasiimwe/plink1.9/plink --vcf rs35612982_snp.vcf --recode tab --out rs35612982_snp
+
+# Process ped and map_files (In R)
+files_name <- "rs938564_snp"
+snps <- fread(paste0(files_name, ".map")) %>%
+  pull(V2)
+ped <- fread(paste0(files_name, ".ped"))
+ped_start <- ped %>% 
+  select(V1:V6) # This selects FID, IID, father's ID, mother's ID, sex and phenotype data
+snp_columns <- colnames(ped)[!colnames(ped) %in% colnames(ped_start)]
+ped_snps <- ped %>%
+  select(all_of(snp_columns))
+ped_snps <- ped_snps %>%
+  mutate_all(additive_coding_fn) 
+colnames(ped_snps) <- snps
+rs938564_snp <- ped_snps %>%
+  mutate(f.eid = ped_start$V1)
+
+files_name <- "rs35612982_snp"
+snps <- fread(paste0(files_name, ".map")) %>%
+  pull(V2)
+ped <- fread(paste0(files_name, ".ped"))
+ped_start <- ped %>% 
+  select(V1:V6) # This selects FID, IID, father's ID, mother's ID, sex and phenotype data
+snp_columns <- colnames(ped)[!colnames(ped) %in% colnames(ped_start)]
+ped_snps <- ped %>%
+  select(all_of(snp_columns))
+ped_snps <- ped_snps %>%
+  mutate_all(additive_coding_fn) 
+colnames(ped_snps) <- snps
+rs35612982_snp <- ped_snps %>%
+  mutate(f.eid = ped_start$V1)
+
+# Urate and rs938564 (raw phenotype)
+odata <- fread("pheno_BFZ_dis.txt") %>% # Get the phenotype data
+  left_join(fread("covar_BFZ_dis.txt")) %>% # Join it with the covariate data (to obtain 'thiazide status')
+  select(FID, thiazide, glucose, urate) %>%
+  rename(f.eid = FID) %>%
+  left_join(rs938564_snp) %>%
+  left_join(rs35612982_snp) %>%
+  mutate_at(vars(rs938564, rs35612982), as.factor) %>%
+  mutate(thiazide = case_when(thiazide == "Yes" ~ "Thiazide", thiazide == "No" ~ "No thiazide"))
+
+odata2 <- odata %>% 
+  filter(!is.na(urate)) %>%
+  arrange(urate) %>%
+  filter(!is.na(rs938564))
+extreme <- c(0.5, 0.05, 0.1, 0.15, 0.2, 0.25) # For the extreme discordant phenotype (0.5/50% = all participants)
+titles <- c("All participants", "10%", "20%", "30%", "40%", "50%")
+output <- list("list", length(extreme))
+effect_tb <- tibble(thiazides = vector("character", length(extreme)),
+                    no_thiazides = vector("character", length(extreme)))
+for(i in seq_along(extreme)){
+  odata3 <- head(odata2, round(extreme[[i]] * nrow(odata2), 0)) %>%
+    bind_rows(tail(odata2, round(extreme[[i]] * nrow(odata2), 0))) 
+  
+  MAF1 <- odata3 %>% filter(thiazide == "No thiazide") %>% pull(rs938564) %>% maf_fn() %>% round(3)
+  MAF2 <- odata3 %>% filter(thiazide == "Thiazide") %>% pull(rs938564) %>% maf_fn() %>% round(3)
+  MAFs <- paste0(" (MAF = ", round(maf_fn(odata3$rs938564), 3), ", ", MAF1, " vs ", MAF2, ")")
+  
+  output[[i]] <- ggplot(odata3, aes(x = rs938564, y = urate, colour = rs938564)) + 
+    geom_boxplot(alpha = 0.7) +
+    facet_wrap(~ thiazide) +
+    labs(title = paste0(titles[[i]], MAFs)
+    ) +
+    theme_bw() +
+    theme(plot.title = element_text(hjust = 0.5, size = 12, face = "bold.italic"),
+          axis.text = element_text(size = 10, colour = "black"),
+          axis.title = element_blank(),
+          strip.text = element_text(size = 10, color = "black", face = "bold"),
+          legend.position = "none"  # remove key/legend
+    ) +
+    scale_fill_brewer(palette = "Set1")
+  
+  mod <- summary(lm(urate ~ rs938564, data = odata3 %>% 
+                      filter(thiazide == "Thiazide") %>%
+                      mutate(rs938564 = as.numeric(as.character(rs938564))))) 
+  effect_tb[i, 1] <- paste0(round(mod$coefficients[2, 1], 4), " (", round(mod$coefficients[2, 2], 4), ")")
+  mod <- summary(lm(urate ~ rs938564, data = odata3 %>% 
+                      filter(thiazide == "No thiazide") %>%
+                      mutate(rs938564 = as.numeric(as.character(rs938564))))) 
+  effect_tb[i, 2] <- paste0(round(mod$coefficients[2, 1], 4), " (", round(mod$coefficients[2, 2], 4), ")")
+}
+png("urate_rs938564.png", width = 2000, height = 1200, res = 120)
+n_columns <- 3
+grid.arrange(grobs = output, 
+             ncol = n_columns)
+dev.off()
+effect_tb %>% select(no_thiazides, thiazides) # Gives the effect size with the SDs
+
+# Urate and rs938564 (adjusted phenotype)
+odata <- fread("urate_BFZ_dis_osca.txt") %>% 
+  select(V1, V3) %>%
+  rename(FID = V1, urate = V3) %>%
+  left_join(fread("covar_BFZ_dis.txt")) %>%
+  select(FID, thiazide, urate) %>%
+  rename(f.eid = FID) %>%
+  left_join(rs938564_snp) %>%
+  left_join(rs35612982_snp) %>%
+  mutate_at(vars(rs938564, rs35612982), as.factor) %>%
+  mutate(thiazide = case_when(thiazide == "Yes" ~ "Thiazide", thiazide == "No" ~ "No thiazide"))
+
+odata2 <- odata %>% 
+  filter(!is.na(urate)) %>%
+  arrange(urate) %>%
+  filter(!is.na(rs938564))
+extreme <- c(0.5, 0.05, 0.1, 0.15, 0.2, 0.25)
+titles <- c("All participants", "10%", "20%", "30%", "40%", "50%")
+output <- list("list", length(extreme))
+effect_tb <- tibble(thiazides = vector("character", length(extreme)),
+                    no_thiazides = vector("character", length(extreme)))
+for(i in seq_along(extreme)){
+  odata3 <- head(odata2, round(extreme[[i]] * nrow(odata2), 0)) %>%
+    bind_rows(tail(odata2, round(extreme[[i]] * nrow(odata2), 0))) 
+  
+  MAF1 <- odata3 %>% filter(thiazide == "No thiazide") %>% pull(rs938564) %>% maf_fn() %>% round(3)
+  MAF2 <- odata3 %>% filter(thiazide == "Thiazide") %>% pull(rs938564) %>% maf_fn() %>% round(3)
+  MAFs <- paste0(" (MAF = ", round(maf_fn(odata3$rs938564), 3), ", ", MAF1, " vs ", MAF2, ")")
+  
+  output[[i]] <- ggplot(odata3, aes(x = rs938564, y = urate, colour = rs938564)) + 
+    geom_boxplot(alpha = 0.7) +
+    facet_wrap(~ thiazide) +
+    labs(title = paste0(titles[[i]])
+    ) +
+    theme_bw() +
+    theme(plot.title = element_text(hjust = 0.5, size = 12, face = "bold.italic"),
+          axis.text = element_text(size = 10, colour = "black"),
+          axis.title = element_blank(),
+          strip.text = element_text(size = 10, color = "black", face = "bold"),
+          legend.position = "none"  # remove key/legend
+    ) +
+    scale_fill_brewer(palette = "Set1")
+  mod <- summary(lm(urate ~ rs938564, data = odata3 %>% 
+                      filter(thiazide == "Thiazide") %>%
+                      mutate(rs938564 = as.numeric(as.character(rs938564))))) 
+  effect_tb[i, 1] <- paste0(round(mod$coefficients[2, 1], 4), " (", round(mod$coefficients[2, 2], 4), ")")
+  mod <- summary(lm(urate ~ rs938564, data = odata3 %>% 
+                      filter(thiazide == "No thiazide") %>%
+                      mutate(rs938564 = as.numeric(as.character(rs938564))))) 
+  effect_tb[i, 2] <- paste0(round(mod$coefficients[2, 1], 4), " (", round(mod$coefficients[2, 2], 4), ")")
+}
+png("adj_urate_rs938564.png", width = 2000, height = 1200, res = 120)
+n_columns <- 3
+grid.arrange(grobs = output, 
+             ncol = n_columns)
+dev.off()
+effect_tb %>% select(no_thiazides, thiazides)
+
+
+# Figures S10 and S11 (Sensitivity analysis for bllod glucose and serum urate, Manhattan plots; serum urate used as example)
 image_1 <- image_read("UKBB_dis_urate_manhattan_vqtl_sen.png") %>% 
   image_trim() %>%
   image_border(color = "white", "10x50") %>%

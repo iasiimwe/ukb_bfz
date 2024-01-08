@@ -383,3 +383,32 @@ ukb_dbsnp <- function(snps_list, n_digits = 3) {
   }
   return(file)
 }
+
+# 10. Additive coding function
+# ----------------------------
+# Aim: Code genotypes using the additive mode of inheritance
+# Input(s): vector of genotypes.
+# Output: Coded genotypes, with wild-type homozygotes = 0, heterozygotes = 1, and mutant-type homozygotes = 2. 
+additive_coding_fn <- function(x) {
+  x <- gsub(" ", "", x) 
+  x[x == "00"] <- NA
+  y <- table(x)
+  y <- names(sort(-y)) # Sort in descending order, assume mutant type is the least abundant
+  if (length(y) == 3) x <- gsub(y[[3]], "2", x) 
+  if (length(y) > 1) x <- gsub(y[[2]], "1", x) 
+  x <- gsub(y[[1]], "0", x)
+  return(as.numeric(x))
+}
+
+# 10. Minor allele frequency (MAF)
+# -------------------------------
+# Aim: Obtain MAFs
+# Input(s): vector of genotypes.
+# Output: MAF 
+maf_fn <- function(x) {
+  x <- table(x)
+  if (length(x) == 1) maf <- 1 
+  if (length(x) == 2) maf <- as.numeric(x["1"] / (2 * ( x["0"] +  x["1"])))
+  if (length(x) == 3) maf <- as.numeric((x["1"] + 2 *x["2"])/ (2 * ( x["0"] +  x["1"] +  x["2"])))
+  return(maf)
+}
